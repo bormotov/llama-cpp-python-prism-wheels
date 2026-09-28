@@ -166,13 +166,17 @@ jobs:
         run: |
           echo "PRISM_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
-      - name: Repoint submodule to PrismML fork
+      - name: Test workspace
         run: |
-          set -eu
-          echo "=== DEBUG: workspace contents ==="
+          echo "=== TEST: workspace contents ==="
           ls -la
-          echo "=== DEBUG: PRISM_TAG='${PRISM_TAG}' ==="
-          echo "=== DEBUG: pwd=$(pwd) ==="
+          echo "=== TEST: PRISM_TAG='${PRISM_TAG}' ==="
+          echo "=== TEST: GITHUB_REF='${GITHUB_REF}' ==="
+          echo "=== TEST: pwd=$(pwd) ==="
+
+- name: Repoint submodule to PrismML fork
+        run: |
+          set -e
           cd llama-cpp-python
           # The parent repo records the upstream llama.cpp commit (4df29be).
           # After changing URL to PrismML fork, we must NOT run 'git submodule update'
@@ -282,13 +286,17 @@ jobs:
         run: |
           echo "PRISM_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
-      - name: Repoint submodule to PrismML fork
+      - name: Test workspace
         run: |
-          set -eu
-          echo "=== DEBUG: workspace contents ==="
+          echo "=== TEST: workspace contents ==="
           ls -la
-          echo "=== DEBUG: PRISM_TAG='${PRISM_TAG}' ==="
-          echo "=== DEBUG: pwd=$(pwd) ==="
+          echo "=== TEST: PRISM_TAG='${PRISM_TAG}' ==="
+          echo "=== TEST: GITHUB_REF='${GITHUB_REF}' ==="
+          echo "=== TEST: pwd=$(pwd) ==="
+
+- name: Repoint submodule to PrismML fork
+        run: |
+          set -e
           cd llama-cpp-python
           # The parent repo records the upstream llama.cpp commit (4df29be).
           # After changing URL to PrismML fork, we must NOT run 'git submodule update'
