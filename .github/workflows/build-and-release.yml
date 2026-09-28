@@ -157,9 +157,11 @@ jobs:
 
       - name: Repoint submodule to PrismML fork
         run: |
-          set -eux
+          set -eu
           cd llama-cpp-python
-          echo "PRISM_TAG=${PRISM_TAG}"
+          echo "=== DEBUG: PRISM_TAG='${PRISM_TAG}' ==="
+          echo "=== DEBUG: pwd=$(pwd) ==="
+          echo "=== DEBUG: git version=$(git --version) ==="
           # The parent repo records the upstream llama.cpp commit (4df29be).
           # After changing URL to PrismML fork, we must NOT run 'git submodule update'
           # (it would try to fetch 4df29be from PrismML, which doesn't exist).
@@ -168,11 +170,15 @@ jobs:
           git submodule sync
           rm -rf vendor/llama.cpp
           # Clone without recursive submodules first (can fail on tags with --depth 1)
+          echo "=== DEBUG: cloning PrismML fork ==="
           git clone --depth 1 --branch "${PRISM_TAG}" \
-            https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp
+            https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp 2>&1
+          echo "=== DEBUG: clone done, entering vendor/llama.cpp ==="
           cd vendor/llama.cpp
           # Initialize submodules separately
-          git submodule update --init --recursive --depth 1
+          echo "=== DEBUG: updating submodules ==="
+          git submodule update --init --recursive --depth 1 2>&1
+          echo "=== DEBUG: submodules done ==="
           git log --oneline -1
           git describe --tags
 
@@ -261,9 +267,11 @@ jobs:
 
       - name: Repoint submodule to PrismML fork
         run: |
-          set -eux
+          set -eu
           cd llama-cpp-python
-          echo "PRISM_TAG=${PRISM_TAG}"
+          echo "=== DEBUG: PRISM_TAG='${PRISM_TAG}' ==="
+          echo "=== DEBUG: pwd=$(pwd) ==="
+          echo "=== DEBUG: git version=$(git --version) ==="
           # The parent repo records the upstream llama.cpp commit (4df29be).
           # After changing URL to PrismML fork, we must NOT run 'git submodule update'
           # (it would try to fetch 4df29be from PrismML, which doesn't exist).
@@ -272,11 +280,15 @@ jobs:
           git submodule sync
           rm -rf vendor/llama.cpp
           # Clone without recursive submodules first (can fail on tags with --depth 1)
+          echo "=== DEBUG: cloning PrismML fork ==="
           git clone --depth 1 --branch "${PRISM_TAG}" \
-            https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp
+            https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp 2>&1
+          echo "=== DEBUG: clone done, entering vendor/llama.cpp ==="
           cd vendor/llama.cpp
           # Initialize submodules separately
-          git submodule update --init --recursive --depth 1
+          echo "=== DEBUG: updating submodules ==="
+          git submodule update --init --recursive --depth 1 2>&1
+          echo "=== DEBUG: submodules done ==="
           git log --oneline -1
           git describe --tags
 
