@@ -54,8 +54,11 @@ jobs:
       - name: Resolve PRISM_TAG from ref (for push events)
         if: github.event_name == 'push' && !github.event.inputs.prism_tag
         run: |
+          echo "=== DEBUG: GITHUB_REF='${GITHUB_REF}' ==="
+          echo "=== DEBUG: github.ref_name='${GITHUB_REF_NAME}' ==="
           # github.ref is like "refs/tags/prism-b10743-adfffbe"
           echo "PRISM_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          echo "=== DEBUG: Set PRISM_TAG to '${GITHUB_REF#refs/tags/}' ==="
 
       - name: Repoint submodule to PrismML fork
         run: |
