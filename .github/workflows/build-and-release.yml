@@ -69,12 +69,12 @@ jobs:
           git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
           git submodule sync
           rm -rf vendor/llama.cpp
-          # Clone without depth limit (tags don't work with --depth 1 in some environments)
+          # Clone without branch specification, then checkout the tag
           echo "=== DEBUG: cloning PrismML fork ==="
-          git clone --branch "${PRISM_TAG}" \
-            https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp 2>&1
-          echo "=== DEBUG: clone done, entering vendor/llama.cpp ==="
+          git clone https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp 2>&1
           cd vendor/llama.cpp
+          git checkout "${PRISM_TAG}" 2>&1
+          echo "=== DEBUG: checkout done ==="
           # Initialize submodules separately
           echo "=== DEBUG: updating submodules ==="
           git submodule update --init --recursive 2>&1
@@ -201,12 +201,12 @@ jobs:
           git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
           git submodule sync
           rm -rf vendor/llama.cpp
-          # Clone without depth limit (tags don't work with --depth 1 in some environments)
+          # Clone without branch specification, then checkout the tag
           echo "=== DEBUG: cloning PrismML fork ==="
-          git clone --branch "${PRISM_TAG}" \
-            https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp 2>&1
-          echo "=== DEBUG: clone done, entering vendor/llama.cpp ==="
+          git clone https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp 2>&1
           cd vendor/llama.cpp
+          git checkout "${PRISM_TAG}" 2>&1
+          echo "=== DEBUG: checkout done ==="
           # Initialize submodules separately
           echo "=== DEBUG: updating submodules ==="
           git submodule update --init --recursive 2>&1
@@ -331,12 +331,12 @@ jobs:
           git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
           git submodule sync
           rm -rf vendor/llama.cpp
-          # Clone without depth limit (tags don't work with --depth 1 in some environments)
+          # Clone without branch specification, then checkout the tag
           echo "=== DEBUG: cloning PrismML fork ==="
-          git clone --branch "${PRISM_TAG}" \
-            https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp 2>&1
-          echo "=== DEBUG: clone done, entering vendor/llama.cpp ==="
+          git clone https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp 2>&1
           cd vendor/llama.cpp
+          git checkout "${PRISM_TAG}" 2>&1
+          echo "=== DEBUG: checkout done ==="
           # Initialize submodules separately
           echo "=== DEBUG: updating submodules ==="
           git submodule update --init --recursive 2>&1
