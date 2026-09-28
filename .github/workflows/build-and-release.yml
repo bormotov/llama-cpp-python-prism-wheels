@@ -61,9 +61,12 @@ jobs:
           git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
           git submodule sync
           rm -rf vendor/llama.cpp
-          git clone --depth 1 --branch "${PRISM_TAG}" --recurse-submodules --shallow-submodules \
+          # Clone without recursive submodules first (can fail on tags with --depth 1)
+          git clone --depth 1 --branch "${PRISM_TAG}" \
             https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp
           cd vendor/llama.cpp
+          # Initialize submodules separately
+          git submodule update --init --recursive --depth 1
           git log --oneline -1
           git describe --tags
 
@@ -158,9 +161,10 @@ jobs:
           git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
           git submodule sync
           rm -rf vendor/llama.cpp
-          git clone --depth 1 --branch "${PRISM_TAG}" --recurse-submodules --shallow-submodules \
+          git clone --depth 1 --branch "${PRISM_TAG}" \
             https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp
           cd vendor/llama.cpp
+          git submodule update --init --recursive --depth 1
           git log --oneline -1
           git describe --tags
 
@@ -253,9 +257,10 @@ jobs:
           git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
           git submodule sync
           rm -rf vendor/llama.cpp
-          git clone --depth 1 --branch "${PRISM_TAG}" --recurse-submodules --shallow-submodules \
+          git clone --depth 1 --branch "${PRISM_TAG}" \
             https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp
           cd vendor/llama.cpp
+          git submodule update --init --recursive --depth 1
           git log --oneline -1
           git describe --tags
 
