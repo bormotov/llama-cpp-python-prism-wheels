@@ -52,17 +52,18 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Resolve PRISM_TAG from ref (for push events)
-        if: github.event_name == 'push' && !github.event.inputs.prism_tag
-        run: |
-          echo "=== DEBUG: GITHUB_REF='${GITHUB_REF}' ==="
-          echo "=== DEBUG: github.ref_name='${GITHUB_REF_NAME}' ==="
-          # For tag pushes, github.ref_name contains just the tag name
-          echo "PRISM_TAG=${GITHUB_REF_NAME}" >> $GITHUB_ENV
-          echo "=== DEBUG: Set PRISM_TAG to '${GITHUB_REF_NAME}' ==="
-
       - name: Repoint submodule to PrismML fork
         run: |
+          set -e
+          PRISM_TAG="${{ env.PRISM_TAG }}"
+          echo "=== DEBUG: PRISM_TAG='${PRISM_TAG}' ==="
+          echo "=== DEBUG: GITHUB_REF='${GITHUB_REF}' ==="
+          echo "=== DEBUG: GITHUB_EVENT_NAME='${GITHUB_EVENT_NAME}' ==="
+          echo "=== DEBUG: GITHUB_REF_NAME='${GITHUB_REF_NAME}' ==="
+          if [ -z "${PRISM_TAG}" ]; then
+            echo "ERROR: PRISM_TAG is empty!"
+            exit 1
+          fi
           cd llama-cpp-python
           # The parent repo records the upstream llama.cpp commit (4df29be).
           # After changing URL to PrismML fork, we must NOT run 'git submodule update'
@@ -72,11 +73,15 @@ jobs:
           git submodule sync
           rm -rf vendor/llama.cpp
           # Clone without recursive submodules first (can fail on tags with --depth 1)
+          echo "=== DEBUG: cloning PrismML fork ==="
           git clone --depth 1 --branch "${PRISM_TAG}" \
-            https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp
+            https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp 2>&1
+          echo "=== DEBUG: clone done, entering vendor/llama.cpp ==="
           cd vendor/llama.cpp
           # Initialize submodules separately
-          git submodule update --init --recursive --depth 1
+          echo "=== DEBUG: updating submodules ==="
+          git submodule update --init --recursive --depth 1 2>&1
+          echo "=== DEBUG: submodules done ==="
           git log --oneline -1
           git describe --tags
 
@@ -113,8 +118,8 @@ jobs:
       - name: Bump version to PEP 440 local version
         run: |
           cd llama-cpp-python
-          LOCAL_VER="prism.${PRISM_TAG//-/.}"
-          sed -i '' "s/^__version__ = \".*\"/__version__ = \"${LLAMA_CPP_PYTHON_VERSION}+${LOCAL_VER}\"/" llama_cpp/__init__.py
+          LOCAL_VER="prism.${{ env.PRISM_TAG//-/. }}"
+          sed -i '' "s/^__version__ = \".*\"/__version__ = \"${{ env.LLAMA_CPP_PYTHON_VERSION }}+${LOCAL_VER}\"/" llama_cpp/__init__.py
           echo "Version: $(cat llama_cpp/__init__.py | grep __version__)"
 
       - name: Set up Python
@@ -165,27 +170,24 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Resolve PRISM_TAG from ref (for push events)
-        if: github.event_name == 'push' && !github.event.inputs.prism_tag
-        run: |
-          echo "PRISM_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-
       - name: Test workspace
         run: |
           echo "=== TEST: workspace contents ==="
           ls -la
-          echo "=== TEST: PRISM_TAG='${PRISM_TAG}' ==="
+          echo "=== TEST: PRISM_TAG='${{ env.PRISM_TAG }}' ==="
           echo "=== TEST: GITHUB_REF='${GITHUB_REF}' ==="
           echo "=== TEST: GITHUB_EVENT_NAME='${GITHUB_EVENT_NAME}' ==="
+          echo "=== TEST: GITHUB_REF_NAME='${GITHUB_REF_NAME}' ==="
           echo "=== TEST: pwd=$(pwd) ==="
-          echo "=== DEBUG: PRISM_TAG from env is: '${PRISM_TAG}' ==="
 
       - name: Repoint submodule to PrismML fork
         run: |
           set -e
+          PRISM_TAG="${{ env.PRISM_TAG }}"
           echo "=== DEBUG: PRISM_TAG='${PRISM_TAG}' ==="
           echo "=== DEBUG: GITHUB_REF='${GITHUB_REF}' ==="
           echo "=== DEBUG: GITHUB_EVENT_NAME='${GITHUB_EVENT_NAME}' ==="
+          echo "=== DEBUG: GITHUB_REF_NAME='${GITHUB_REF_NAME}' ==="
           if [ -z "${PRISM_TAG}" ]; then
             echo "ERROR: PRISM_TAG is empty!"
             exit 1
@@ -239,8 +241,8 @@ jobs:
       - name: Bump version
         run: |
           cd llama-cpp-python
-          LOCAL_VER="prism.${PRISM_TAG//-/.}"
-          sed -i '' "s/^__version__ = \".*\"/__version__ = \"${LLAMA_CPP_PYTHON_VERSION}+${LOCAL_VER}\"/" llama_cpp/__init__.py
+          LOCAL_VER="prism.${{ env.PRISM_TAG//-/. }}"
+          sed -i '' "s/^__version__ = \".*\"/__version__ = \"${{ env.LLAMA_CPP_PYTHON_VERSION }}+${LOCAL_VER}\"/" llama_cpp/__init__.py
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -294,27 +296,24 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Resolve PRISM_TAG from ref (for push events)
-        if: github.event_name == 'push' && !github.event.inputs.prism_tag
-        run: |
-          echo "PRISM_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-
       - name: Test workspace
         run: |
           echo "=== TEST: workspace contents ==="
           ls -la
-          echo "=== TEST: PRISM_TAG='${PRISM_TAG}' ==="
+          echo "=== TEST: PRISM_TAG='${{ env.PRISM_TAG }}' ==="
           echo "=== TEST: GITHUB_REF='${GITHUB_REF}' ==="
           echo "=== TEST: GITHUB_EVENT_NAME='${GITHUB_EVENT_NAME}' ==="
+          echo "=== TEST: GITHUB_REF_NAME='${GITHUB_REF_NAME}' ==="
           echo "=== TEST: pwd=$(pwd) ==="
-          echo "=== DEBUG: PRISM_TAG from env is: '${PRISM_TAG}' ==="
 
       - name: Repoint submodule to PrismML fork
         run: |
           set -e
+          PRISM_TAG="${{ env.PRISM_TAG }}"
           echo "=== DEBUG: PRISM_TAG='${PRISM_TAG}' ==="
           echo "=== DEBUG: GITHUB_REF='${GITHUB_REF}' ==="
           echo "=== DEBUG: GITHUB_EVENT_NAME='${GITHUB_EVENT_NAME}' ==="
+          echo "=== DEBUG: GITHUB_REF_NAME='${GITHUB_REF_NAME}' ==="
           if [ -z "${PRISM_TAG}" ]; then
             echo "ERROR: PRISM_TAG is empty!"
             exit 1
@@ -368,8 +367,8 @@ jobs:
       - name: Bump version
         run: |
           cd llama-cpp-python
-          LOCAL_VER="prism.${PRISM_TAG//-/.}"
-          sed -i "s/^__version__ = \".*\"/__version__ = \"${LLAMA_CPP_PYTHON_VERSION}+${LOCAL_VER}\"/" llama_cpp/__init__.py
+          LOCAL_VER="prism.${{ env.PRISM_TAG//-/. }}"
+          sed -i "s/^__version__ = \".*\"/__version__ = \"${{ env.LLAMA_CPP_PYTHON_VERSION }}+${LOCAL_VER}\"/" llama_cpp/__init__.py
 
       - name: Set up Python
         uses: actions/setup-python@v5
