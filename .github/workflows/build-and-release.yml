@@ -51,6 +51,12 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
+      - name: Resolve PRISM_TAG from ref (for push events)
+        if: github.event_name == 'push' && !github.event.inputs.prism_tag
+        run: |
+          # github.ref is like "refs/tags/prism-b10743-adfffbe"
+          echo "PRISM_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
       - name: Repoint submodule to PrismML fork
         run: |
           cd llama-cpp-python
@@ -154,6 +160,11 @@ jobs:
           ref: v${{ env.LLAMA_CPP_PYTHON_VERSION }}
           submodules: recursive
           fetch-depth: 1
+
+      - name: Resolve PRISM_TAG from ref (for push events)
+        if: github.event_name == 'push' && !github.event.inputs.prism_tag
+        run: |
+          echo "PRISM_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Repoint submodule to PrismML fork
         run: |
@@ -264,6 +275,11 @@ jobs:
           ref: v${{ env.LLAMA_CPP_PYTHON_VERSION }}
           submodules: recursive
           fetch-depth: 1
+
+      - name: Resolve PRISM_TAG from ref (for push events)
+        if: github.event_name == 'push' && !github.event.inputs.prism_tag
+        run: |
+          echo "PRISM_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Repoint submodule to PrismML fork
         run: |
