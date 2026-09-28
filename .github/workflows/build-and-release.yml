@@ -54,14 +54,16 @@ jobs:
       - name: Repoint submodule to PrismML fork
         run: |
           cd llama-cpp-python
+          # The parent repo records the upstream llama.cpp commit (4df29be).
+          # After changing URL to PrismML fork, we must NOT run 'git submodule update'
+          # (it would try to fetch 4df29be from PrismML, which doesn't exist).
+          # Instead, manually clone the PrismML fork at the desired tag.
           git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
           git submodule sync
           rm -rf vendor/llama.cpp
-          git submodule update --init --recursive --depth 1
+          git clone --depth 1 --branch "${PRISM_TAG}" --recurse-submodules --shallow-submodules \
+            https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp
           cd vendor/llama.cpp
-          git fetch --depth 1 origin "refs/tags/${PRISM_TAG}:refs/tags/${PRISM_TAG}"
-          git checkout "${PRISM_TAG}"
-          git submodule update --init --recursive --depth 1
           git log --oneline -1
           git describe --tags
 
@@ -156,11 +158,11 @@ jobs:
           git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
           git submodule sync
           rm -rf vendor/llama.cpp
-          git submodule update --init --recursive --depth 1
+          git clone --depth 1 --branch "${PRISM_TAG}" --recurse-submodules --shallow-submodules \
+            https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp
           cd vendor/llama.cpp
-          git fetch --depth 1 origin "refs/tags/${PRISM_TAG}:refs/tags/${PRISM_TAG}"
-          git checkout "${PRISM_TAG}"
-          git submodule update --init --recursive --depth 1
+          git log --oneline -1
+          git describe --tags
 
       - name: Patch ctypes binding for struct layout drift
         run: |
@@ -234,8 +236,8 @@ jobs:
     steps:
       - name: Install system deps
         run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build libopenblas-dev python3.11-venv
+          sudo apt-get update -y
+          sudo apt-get install -y cmake ninja-build libopenblas-dev python3-venv
 
       - name: Checkout llama-cpp-python
         uses: actions/checkout@v4
@@ -251,11 +253,11 @@ jobs:
           git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
           git submodule sync
           rm -rf vendor/llama.cpp
-          git submodule update --init --recursive --depth 1
+          git clone --depth 1 --branch "${PRISM_TAG}" --recurse-submodules --shallow-submodules \
+            https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp
           cd vendor/llama.cpp
-          git fetch --depth 1 origin "refs/tags/${PRISM_TAG}:refs/tags/${PRISM_TAG}"
-          git checkout "${PRISM_TAG}"
-          git submodule update --init --recursive --depth 1
+          git log --oneline -1
+          git describe --tags
 
       - name: Patch ctypes binding
         run: |
