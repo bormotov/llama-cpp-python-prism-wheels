@@ -182,6 +182,10 @@ jobs:
           echo "=== DEBUG: PRISM_TAG='${PRISM_TAG}' ==="
           echo "=== DEBUG: GITHUB_REF='${GITHUB_REF}' ==="
           echo "=== DEBUG: GITHUB_EVENT_NAME='${GITHUB_EVENT_NAME}' ==="
+          if [ -z "${PRISM_TAG}" ]; then
+            echo "ERROR: PRISM_TAG is empty!"
+            exit 1
+          fi
           cd llama-cpp-python
           # The parent repo records the upstream llama.cpp commit (4df29be).
           # After changing URL to PrismML fork, we must NOT run 'git submodule update'
@@ -307,6 +311,10 @@ jobs:
           echo "=== DEBUG: PRISM_TAG='${PRISM_TAG}' ==="
           echo "=== DEBUG: GITHUB_REF='${GITHUB_REF}' ==="
           echo "=== DEBUG: GITHUB_EVENT_NAME='${GITHUB_EVENT_NAME}' ==="
+          if [ -z "${PRISM_TAG}" ]; then
+            echo "ERROR: PRISM_TAG is empty!"
+            exit 1
+          fi
           cd llama-cpp-python
           # The parent repo records the upstream llama.cpp commit (4df29be).
           # After changing URL to PrismML fork, we must NOT run 'git submodule update'
