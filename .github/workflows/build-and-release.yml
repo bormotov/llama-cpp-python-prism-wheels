@@ -172,7 +172,9 @@ jobs:
           ls -la
           echo "=== TEST: PRISM_TAG='${PRISM_TAG}' ==="
           echo "=== TEST: GITHUB_REF='${GITHUB_REF}' ==="
+          echo "=== TEST: GITHUB_EVENT_NAME='${GITHUB_EVENT_NAME}' ==="
           echo "=== TEST: pwd=$(pwd) ==="
+          echo "=== DEBUG: PRISM_TAG from env is: '${PRISM_TAG}' ==="
 
       - name: Repoint submodule to PrismML fork
         run: |
@@ -295,7 +297,9 @@ jobs:
           ls -la
           echo "=== TEST: PRISM_TAG='${PRISM_TAG}' ==="
           echo "=== TEST: GITHUB_REF='${GITHUB_REF}' ==="
+          echo "=== TEST: GITHUB_EVENT_NAME='${GITHUB_EVENT_NAME}' ==="
           echo "=== TEST: pwd=$(pwd) ==="
+          echo "=== DEBUG: PRISM_TAG from env is: '${PRISM_TAG}' ==="
 
       - name: Repoint submodule to PrismML fork
         run: |
