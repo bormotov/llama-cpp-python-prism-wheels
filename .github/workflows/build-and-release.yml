@@ -69,12 +69,22 @@ jobs:
           git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
           git submodule sync
           rm -rf vendor/llama.cpp
-          # Clone without branch specification, then checkout the tag
-          echo "=== DEBUG: cloning PrismML fork ==="
-          git clone https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp 2>&1
+          # Download source code as tarball from GitHub API (avoids git clone issues)
+          echo "=== DEBUG: downloading source tarball ==="
+          curl -L -f "https://github.com/PrismML-Eng/llama.cpp/archive/refs/tags/${PRISM_TAG}.tar.gz" \
+            -o vendor/llama.cpp.tar.gz 2>&1
+          echo "=== DEBUG: tarball downloaded, extracting ==="
+          mkdir -p vendor/llama.cpp
+          tar -xzf vendor/llama.cpp.tar.gz -C vendor/llama.cpp --strip-components=1 2>&1
+          echo "=== DEBUG: extraction done ==="
+          rm vendor/llama.cpp.tar.gz
           cd vendor/llama.cpp
-          git checkout "${PRISM_TAG}" 2>&1
-          echo "=== DEBUG: checkout done ==="
+          # Initialize submodules
+          echo "=== DEBUG: updating submodules ==="
+          git submodule update --init --recursive 2>&1
+          echo "=== DEBUG: submodules done ==="
+          git log --oneline -1
+          git describe --tags
           # Initialize submodules separately
           echo "=== DEBUG: updating submodules ==="
           git submodule update --init --recursive 2>&1
@@ -201,12 +211,22 @@ jobs:
           git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
           git submodule sync
           rm -rf vendor/llama.cpp
-          # Clone without branch specification, then checkout the tag
-          echo "=== DEBUG: cloning PrismML fork ==="
-          git clone https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp 2>&1
+          # Download source code as tarball from GitHub API (avoids git clone issues)
+          echo "=== DEBUG: downloading source tarball ==="
+          curl -L -f "https://github.com/PrismML-Eng/llama.cpp/archive/refs/tags/${PRISM_TAG}.tar.gz" \
+            -o vendor/llama.cpp.tar.gz 2>&1
+          echo "=== DEBUG: tarball downloaded, extracting ==="
+          mkdir -p vendor/llama.cpp
+          tar -xzf vendor/llama.cpp.tar.gz -C vendor/llama.cpp --strip-components=1 2>&1
+          echo "=== DEBUG: extraction done ==="
+          rm vendor/llama.cpp.tar.gz
           cd vendor/llama.cpp
-          git checkout "${PRISM_TAG}" 2>&1
-          echo "=== DEBUG: checkout done ==="
+          # Initialize submodules
+          echo "=== DEBUG: updating submodules ==="
+          git submodule update --init --recursive 2>&1
+          echo "=== DEBUG: submodules done ==="
+          git log --oneline -1
+          git describe --tags
           # Initialize submodules separately
           echo "=== DEBUG: updating submodules ==="
           git submodule update --init --recursive 2>&1
@@ -331,12 +351,22 @@ jobs:
           git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
           git submodule sync
           rm -rf vendor/llama.cpp
-          # Clone without branch specification, then checkout the tag
-          echo "=== DEBUG: cloning PrismML fork ==="
-          git clone https://github.com/PrismML-Eng/llama.cpp vendor/llama.cpp 2>&1
+          # Download source code as tarball from GitHub API (avoids git clone issues)
+          echo "=== DEBUG: downloading source tarball ==="
+          curl -L -f "https://github.com/PrismML-Eng/llama.cpp/archive/refs/tags/${PRISM_TAG}.tar.gz" \
+            -o vendor/llama.cpp.tar.gz 2>&1
+          echo "=== DEBUG: tarball downloaded, extracting ==="
+          mkdir -p vendor/llama.cpp
+          tar -xzf vendor/llama.cpp.tar.gz -C vendor/llama.cpp --strip-components=1 2>&1
+          echo "=== DEBUG: extraction done ==="
+          rm vendor/llama.cpp.tar.gz
           cd vendor/llama.cpp
-          git checkout "${PRISM_TAG}" 2>&1
-          echo "=== DEBUG: checkout done ==="
+          # Initialize submodules
+          echo "=== DEBUG: updating submodules ==="
+          git submodule update --init --recursive 2>&1
+          echo "=== DEBUG: submodules done ==="
+          git log --oneline -1
+          git describe --tags
           # Initialize submodules separately
           echo "=== DEBUG: updating submodules ==="
           git submodule update --init --recursive 2>&1
