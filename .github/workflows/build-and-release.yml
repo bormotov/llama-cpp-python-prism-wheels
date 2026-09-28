@@ -118,9 +118,12 @@ jobs:
       - name: Bump version to PEP 440 local version
         run: |
           cd llama-cpp-python
-          LOCAL_VER="prism.${{ env.PRISM_TAG//-/. }}"
-          sed -i '' "s/^__version__ = \".*\"/__version__ = \"${{ env.LLAMA_CPP_PYTHON_VERSION }}+${LOCAL_VER}\"/" llama_cpp/__init__.py
+          LOCAL_VER="prism.${PRISM_TAG//-/.}"
+          sed -i '' "s/^__version__ = \".*\"/__version__ = \"${LLAMA_CPP_PYTHON_VERSION}+${LOCAL_VER}\"/" llama_cpp/__init__.py
           echo "Version: $(cat llama_cpp/__init__.py | grep __version__)"
+        env:
+          PRISM_TAG: ${{ env.PRISM_TAG }}
+          LLAMA_CPP_PYTHON_VERSION: ${{ env.LLAMA_CPP_PYTHON_VERSION }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -241,8 +244,11 @@ jobs:
       - name: Bump version
         run: |
           cd llama-cpp-python
-          LOCAL_VER="prism.${{ env.PRISM_TAG//-/. }}"
-          sed -i '' "s/^__version__ = \".*\"/__version__ = \"${{ env.LLAMA_CPP_PYTHON_VERSION }}+${LOCAL_VER}\"/" llama_cpp/__init__.py
+          LOCAL_VER="prism.${PRISM_TAG//-/.}"
+          sed -i '' "s/^__version__ = \".*\"/__version__ = \"${LLAMA_CPP_PYTHON_VERSION}+${LOCAL_VER}\"/" llama_cpp/__init__.py
+        env:
+          PRISM_TAG: ${{ env.PRISM_TAG }}
+          LLAMA_CPP_PYTHON_VERSION: ${{ env.LLAMA_CPP_PYTHON_VERSION }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -367,8 +373,11 @@ jobs:
       - name: Bump version
         run: |
           cd llama-cpp-python
-          LOCAL_VER="prism.${{ env.PRISM_TAG//-/. }}"
-          sed -i "s/^__version__ = \".*\"/__version__ = \"${{ env.LLAMA_CPP_PYTHON_VERSION }}+${LOCAL_VER}\"/" llama_cpp/__init__.py
+          LOCAL_VER="prism.${PRISM_TAG//-/.}"
+          sed -i "s/^__version__ = \".*\"/__version__ = \"${LLAMA_CPP_PYTHON_VERSION}+${LOCAL_VER}\"/" llama_cpp/__init__.py
+        env:
+          PRISM_TAG: ${{ env.PRISM_TAG }}
+          LLAMA_CPP_PYTHON_VERSION: ${{ env.LLAMA_CPP_PYTHON_VERSION }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
