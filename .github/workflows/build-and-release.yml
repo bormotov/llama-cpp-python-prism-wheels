@@ -1,0 +1,377 @@
+# Build and publish llama-cpp-python wheels for PrismML llama.cpp fork
+# Triggers: push tag matching 'prism-b*', manual dispatch
+# Outputs: GitHub Pages index at whl/prism-{metal,cpu,linux-cpu}/
+
+name: Build PrismML Wheels
+
+on:
+  push:
+    tags:
+      - 'prism-b*'
+  workflow_dispatch:
+    inputs:
+      prism_tag:
+        description: 'PrismML llama.cpp tag (e.g. prism-b10743-adfffbe)'
+        required: true
+        type: string
+      llama_cpp_python_version:
+        description: 'llama-cpp-python version to build (e.g. 0.3.35)'
+        required: true
+        default: '0.3.35'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "prism-wheels-${{ github.ref }}"
+  cancel-in-progress: true
+
+env:
+  # Pinned to a specific llama-cpp-python release tag
+  LLAMA_CPP_PYTHON_VERSION: ${{ github.event.inputs.llama_cpp_python_version || '0.3.35' }}
+  # PrismML fork tag (from git tag or workflow_dispatch)
+  PRISM_TAG: ${{ github.event.inputs.prism_tag || github.ref_name }}
+
+jobs:
+  # ------------------------------------------------------------
+  # macOS ARM64 + Metal (primary consumer target)
+  # ------------------------------------------------------------
+  build-metal:
+    name: Build Metal (macOS ARM64)
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout llama-cpp-python
+        uses: actions/checkout@v4
+        with:
+          repository: abetlen/llama-cpp-python
+          ref: v${{ env.LLAMA_CPP_PYTHON_VERSION }}
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Repoint submodule to PrismML fork
+        run: |
+          cd llama-cpp-python
+          git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
+          git submodule sync
+          rm -rf vendor/llama.cpp
+          git submodule update --init --recursive --depth 1
+          cd vendor/llama.cpp
+          git fetch --depth 1 origin "refs/tags/${PRISM_TAG}:refs/tags/${PRISM_TAG}"
+          git checkout "${PRISM_TAG}"
+          git submodule update --init --recursive --depth 1
+          git log --oneline -1
+          git describe --tags
+
+      - name: Patch ctypes binding for struct layout drift
+        run: |
+          cd llama-cpp-python
+          python3 <<'PY'
+          import re, pathlib
+          p = pathlib.Path("llama_cpp/llama_cpp.py")
+          t = p.read_text()
+          # 1) llama_model_params: prepend dspark_head_source
+          t = re.sub(
+              r'(    _fields_ = \[\n\s*\("devices", ctypes\.c_void_p\))',
+              r'        ("dspark_head_source", ctypes.c_void_p),\n\1',
+              t
+          )
+          # 2) llama_context_params: insert path_kv_mean_center before abort_callback
+          t = re.sub(
+              r'(        \("type_v", ctypes\.c_int\),\n\s*\("abort_callback")',
+              r'\1,\n        ("path_kv_mean_center", ctypes.c_char_p),\n        \2',
+              t
+          )
+          # 3) llama_opt_params: append optimizer_type
+          t = re.sub(
+              r'(        \("get_opt_pars_ud", ctypes\.c_void_p\),\n\s*\])',
+              r'\1,\n        ("optimizer_type", ctypes.c_int),\n    ]',
+              t
+          )
+          # 4) GGML_TYPE_COUNT: 43 -> 144
+          t = re.sub(r'^GGML_TYPE_COUNT = 43$', 'GGML_TYPE_COUNT = 144  # [prism]', t, flags=re.M)
+          p.write_text(t)
+          print("Patched llama_cpp.py")
+
+      - name: Bump version to PEP 440 local version
+        run: |
+          cd llama-cpp-python
+          LOCAL_VER="prism.${PRISM_TAG//-/.}"
+          sed -i '' "s/^__version__ = \".*\"/__version__ = \"${LLAMA_CPP_PYTHON_VERSION}+${LOCAL_VER}\"/" llama_cpp/__init__.py
+          echo "Version: $(cat llama_cpp/__init__.py | grep __version__)"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install build deps
+        run: |
+          pip install -U pip uv
+          uv pip install scikit-build-core ninja cmake packaging
+
+      - name: Build wheel (Metal)
+        env:
+          CMAKE_ARGS: >
+            -DGGML_METAL=ON
+            -DGGML_METAL_EMBED_LIBRARY=ON
+            -DGGML_NATIVE=ON
+            -DLLAMA_BUILD_TESTS=OFF
+            -DLLAMA_BUILD_EXAMPLES=OFF
+            -DLLAMA_BUILD_TOOLS=OFF
+            -DLLAMA_CURL=OFF
+        run: |
+          cd llama-cpp-python
+          uv build --wheel --out-dir ../dist-metal .
+
+      - name: Upload Metal wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-metal
+          path: dist-metal/*.whl
+          retention-days: 1
+
+  # ------------------------------------------------------------
+  # macOS ARM64 CPU-only (fallback / CI systems without Metal)
+  # ------------------------------------------------------------
+  build-cpu:
+    name: Build CPU (macOS ARM64)
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout llama-cpp-python
+        uses: actions/checkout@v4
+        with:
+          repository: abetlen/llama-cpp-python
+          ref: v${{ env.LLAMA_CPP_PYTHON_VERSION }}
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Repoint submodule to PrismML fork
+        run: |
+          cd llama-cpp-python
+          git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
+          git submodule sync
+          rm -rf vendor/llama.cpp
+          git submodule update --init --recursive --depth 1
+          cd vendor/llama.cpp
+          git fetch --depth 1 origin "refs/tags/${PRISM_TAG}:refs/tags/${PRISM_TAG}"
+          git checkout "${PRISM_TAG}"
+          git submodule update --init --recursive --depth 1
+
+      - name: Patch ctypes binding for struct layout drift
+        run: |
+          cd llama-cpp-python
+          python3 <<'PY'
+          import re, pathlib
+          p = pathlib.Path("llama_cpp/llama_cpp.py")
+          t = p.read_text()
+          t = re.sub(
+              r'(    _fields_ = \[\n\s*\("devices", ctypes\.c_void_p\))',
+              r'        ("dspark_head_source", ctypes.c_void_p),\n\1',
+              t
+          )
+          t = re.sub(
+              r'(        \("type_v", ctypes\.c_int\),\n\s*\("abort_callback")',
+              r'\1,\n        ("path_kv_mean_center", ctypes.c_char_p),\n        \2',
+              t
+          )
+          t = re.sub(
+              r'(        \("get_opt_pars_ud", ctypes\.c_void_p\),\n\s*\])',
+              r'\1,\n        ("optimizer_type", ctypes.c_int),\n    ]',
+              t
+          )
+          t = re.sub(r'^GGML_TYPE_COUNT = 43$', 'GGML_TYPE_COUNT = 144  # [prism]', t, flags=re.M)
+          p.write_text(t)
+
+      - name: Bump version
+        run: |
+          cd llama-cpp-python
+          LOCAL_VER="prism.${PRISM_TAG//-/.}"
+          sed -i '' "s/^__version__ = \".*\"/__version__ = \"${LLAMA_CPP_PYTHON_VERSION}+${LOCAL_VER}\"/" llama_cpp/__init__.py
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install build deps
+        run: |
+          pip install -U pip uv
+          uv pip install scikit-build-core ninja cmake packaging
+
+      - name: Build wheel (CPU)
+        env:
+          CMAKE_ARGS: >
+            -DGGML_METAL=OFF
+            -DGGML_NATIVE=ON
+            -DLLAMA_BUILD_TESTS=OFF
+            -DLLAMA_BUILD_EXAMPLES=OFF
+            -DLLAMA_BUILD_TOOLS=OFF
+            -DLLAMA_CURL=OFF
+        run: |
+          cd llama-cpp-python
+          uv build --wheel --out-dir ../dist-cpu .
+
+      - name: Upload CPU wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-cpu
+          path: dist-cpu/*.whl
+          retention-days: 1
+
+  # ------------------------------------------------------------
+  # Linux x86_64 CPU (for Linux consumers)
+  # ------------------------------------------------------------
+  build-linux-cpu:
+    name: Build CPU (Linux x86_64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libopenblas-dev python3.11-venv
+
+      - name: Checkout llama-cpp-python
+        uses: actions/checkout@v4
+        with:
+          repository: abetlen/llama-cpp-python
+          ref: v${{ env.LLAMA_CPP_PYTHON_VERSION }}
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Repoint submodule to PrismML fork
+        run: |
+          cd llama-cpp-python
+          git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
+          git submodule sync
+          rm -rf vendor/llama.cpp
+          git submodule update --init --recursive --depth 1
+          cd vendor/llama.cpp
+          git fetch --depth 1 origin "refs/tags/${PRISM_TAG}:refs/tags/${PRISM_TAG}"
+          git checkout "${PRISM_TAG}"
+          git submodule update --init --recursive --depth 1
+
+      - name: Patch ctypes binding
+        run: |
+          cd llama-cpp-python
+          python3 <<'PY'
+          import re, pathlib
+          p = pathlib.Path("llama_cpp/llama_cpp.py")
+          t = p.read_text()
+          t = re.sub(
+              r'(    _fields_ = \[\n\s*\("devices", ctypes\.c_void_p\))',
+              r'        ("dspark_head_source", ctypes.c_void_p),\n\1',
+              t
+          )
+          t = re.sub(
+              r'(        \("type_v", ctypes\.c_int\),\n\s*\("abort_callback")',
+              r'\1,\n        ("path_kv_mean_center", ctypes.c_char_p),\n        \2',
+              t
+          )
+          t = re.sub(
+              r'(        \("get_opt_pars_ud", ctypes\.c_void_p\),\n\s*\])',
+              r'\1,\n        ("optimizer_type", ctypes.c_int),\n    ]',
+              t
+          )
+          t = re.sub(r'^GGML_TYPE_COUNT = 43$', 'GGML_TYPE_COUNT = 144  # [prism]', t, flags=re.M)
+          p.write_text(t)
+
+      - name: Bump version
+        run: |
+          cd llama-cpp-python
+          LOCAL_VER="prism.${PRISM_TAG//-/.}"
+          sed -i "s/^__version__ = \".*\"/__version__ = \"${LLAMA_CPP_PYTHON_VERSION}+${LOCAL_VER}\"/" llama_cpp/__init__.py
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install build deps
+        run: |
+          pip install -U pip uv
+          uv pip install scikit-build-core ninja cmake packaging
+
+      - name: Build wheel (Linux CPU + BLAS)
+        env:
+          CMAKE_ARGS: >
+            -DGGML_BLAS=ON
+            -DGGML_BLAS_VENDOR=OpenBLAS
+            -DGGML_NATIVE=OFF
+            -DLLAMA_BUILD_TESTS=OFF
+            -DLLAMA_BUILD_EXAMPLES=OFF
+            -DLLAMA_BUILD_TOOLS=OFF
+            -DLLAMA_CURL=OFF
+        run: |
+          cd llama-cpp-python
+          uv build --wheel --out-dir ../dist-linux-cpu .
+
+      - name: Upload Linux CPU wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-linux-cpu
+          path: dist-linux-cpu/*.whl
+          retention-days: 1
+
+  # ------------------------------------------------------------
+  # Publish to GitHub Pages (append-only index)
+  # ------------------------------------------------------------
+  publish:
+    name: Publish to GitHub Pages
+    needs: [build-metal, build-cpu, build-linux-cpu]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+      contents: write
+    steps:
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: wheels
+          pattern: wheel-*
+          merge-multiple: false
+
+      - name: Prepare gh-pages structure
+        run: |
+          mkdir -p public/whl/prism-metal
+          mkdir -p public/whl/prism-cpu
+          mkdir -p public/whl/prism-linux-cpu
+          # Copy wheels into per-backend directories
+          cp wheels/wheel-metal/*.whl public/whl/prism-metal/ 2>/dev/null || true
+          cp wheels/wheel-cpu/*.whl public/whl/prism-cpu/ 2>/dev/null || true
+          cp wheels/wheel-linux-cpu/*.whl public/whl/prism-linux-cpu/ 2>/dev/null || true
+
+      - name: Generate PEP 503 index.html for each backend
+        run: |
+          python3 <<'PY'
+          import pathlib, html
+          for backend in ["prism-metal", "prism-cpu", "prism-linux-cpu"]:
+              dir = pathlib.Path(f"public/whl/{backend}")
+              if not dir.exists():
+                  continue
+              wheels = sorted(dir.glob("*.whl"))
+              if not wheels:
+                  continue
+              lines = ["<!DOCTYPE html><html><body>"]
+              for whl in wheels:
+                  lines.append(f'<a href="{html.escape(whl.name)}">{html.escape(whl.name)}</a><br/>')
+              lines.append("</body></html>")
+              (dir / "index.html").write_text("\n".join(lines))
+              print(f"Generated {dir}/index.html with {len(wheels)} wheel(s)")
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          destination_dir: .
+          force_orphan: true
