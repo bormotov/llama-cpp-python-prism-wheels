@@ -177,6 +177,9 @@ jobs:
       - name: Repoint submodule to PrismML fork
         run: |
           set -e
+          echo "=== DEBUG: PRISM_TAG='${PRISM_TAG}' ==="
+          echo "=== DEBUG: GITHUB_REF='${GITHUB_REF}' ==="
+          echo "=== DEBUG: GITHUB_EVENT_NAME='${GITHUB_EVENT_NAME}' ==="
           cd llama-cpp-python
           # The parent repo records the upstream llama.cpp commit (4df29be).
           # After changing URL to PrismML fork, we must NOT run 'git submodule update'
@@ -297,6 +300,9 @@ jobs:
       - name: Repoint submodule to PrismML fork
         run: |
           set -e
+          echo "=== DEBUG: PRISM_TAG='${PRISM_TAG}' ==="
+          echo "=== DEBUG: GITHUB_REF='${GITHUB_REF}' ==="
+          echo "=== DEBUG: GITHUB_EVENT_NAME='${GITHUB_EVENT_NAME}' ==="
           cd llama-cpp-python
           # The parent repo records the upstream llama.cpp commit (4df29be).
           # After changing URL to PrismML fork, we must NOT run 'git submodule update'
