@@ -169,10 +169,11 @@ jobs:
       - name: Repoint submodule to PrismML fork
         run: |
           set -eu
-          cd llama-cpp-python
+          echo "=== DEBUG: workspace contents ==="
+          ls -la
           echo "=== DEBUG: PRISM_TAG='${PRISM_TAG}' ==="
           echo "=== DEBUG: pwd=$(pwd) ==="
-          echo "=== DEBUG: git version=$(git --version) ==="
+          cd llama-cpp-python
           # The parent repo records the upstream llama.cpp commit (4df29be).
           # After changing URL to PrismML fork, we must NOT run 'git submodule update'
           # (it would try to fetch 4df29be from PrismML, which doesn't exist).
@@ -284,10 +285,11 @@ jobs:
       - name: Repoint submodule to PrismML fork
         run: |
           set -eu
-          cd llama-cpp-python
+          echo "=== DEBUG: workspace contents ==="
+          ls -la
           echo "=== DEBUG: PRISM_TAG='${PRISM_TAG}' ==="
           echo "=== DEBUG: pwd=$(pwd) ==="
-          echo "=== DEBUG: git version=$(git --version) ==="
+          cd llama-cpp-python
           # The parent repo records the upstream llama.cpp commit (4df29be).
           # After changing URL to PrismML fork, we must NOT run 'git submodule update'
           # (it would try to fetch 4df29be from PrismML, which doesn't exist).
