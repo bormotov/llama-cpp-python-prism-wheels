@@ -32,6 +32,7 @@ env:
   # Pinned to a specific llama-cpp-python release tag
   LLAMA_CPP_PYTHON_VERSION: ${{ github.event.inputs.llama_cpp_python_version || '0.3.35' }}
   # PrismML fork tag (from git tag or workflow_dispatch)
+  # For tag pushes, github.ref_name is the tag name; for workflow_dispatch, use input
   PRISM_TAG: ${{ github.event.inputs.prism_tag || github.ref_name }}
 
 jobs:
@@ -56,9 +57,9 @@ jobs:
         run: |
           echo "=== DEBUG: GITHUB_REF='${GITHUB_REF}' ==="
           echo "=== DEBUG: github.ref_name='${GITHUB_REF_NAME}' ==="
-          # github.ref is like "refs/tags/prism-b10743-adfffbe"
-          echo "PRISM_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-          echo "=== DEBUG: Set PRISM_TAG to '${GITHUB_REF#refs/tags/}' ==="
+          # For tag pushes, github.ref_name contains just the tag name
+          echo "PRISM_TAG=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          echo "=== DEBUG: Set PRISM_TAG to '${GITHUB_REF_NAME}' ==="
 
       - name: Repoint submodule to PrismML fork
         run: |
