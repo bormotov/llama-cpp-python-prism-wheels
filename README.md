@@ -23,21 +23,35 @@ The PrismML org provides only CLI binaries (`llama-server`, `llama-cli`). **No P
 | GitHub Actions CI (Metal + CPU + Linux) | ✅ all three green |
 | GitHub Pages index | ✅ PEP 503, installable via pip/uv |
 | Published wheel re-verified | ✅ installed from Pages → Bonsai completion correct |
+| Back-compat test (Gemma 4 12B QAT Q4_0) | ✅ `2+2 → "4"`, `finish_reason: stop` |
 
 Verified end to end: `uv pip install --extra-index-url <pages>/whl/prism-metal/`
-in a clean venv, then the Bonsai acceptance test passes against the *installed*
-wheel, not just a locally built one.
-| Back-compat test (Gemma 12B QAT) | ⏳ pending |
+in a clean venv, then both acceptance tests pass against the *installed* wheel,
+not just a locally built one.
 
-Run the Bonsai acceptance test yourself:
+`scripts/acceptance_bonsai.py` is the Bonsai-specific test — it asserts a
+specific JSON answer, so it only works for that model:
 
 ```bash
 python3 scripts/acceptance_bonsai.py path/to/Ternary-Bonsai-2-27B-PQ2_0.gguf
 ```
 
-It asserts the model loads, that `enable_thinking=False` yields an empty think
-block, and that the completion parses to the expected names — i.e. it checks
-correctness, not just that the wheel imports.
+`scripts/smoke_test.py` is the model-agnostic one. Point it at any GGUF; it reads
+whatever the file declares (architecture, template, special tokens) and checks
+the model actually produces coherent text:
+
+```bash
+# the fork's own quant
+python3 scripts/smoke_test.py path/to/Ternary-Bonsai-2-27B-PQ2_0.gguf
+# a stock llama.cpp quant, to prove the ABI patch didn't break anything else
+python3 scripts/smoke_test.py path/to/gemma-4-12b-it-qat-q4_0.gguf
+python3 scripts/smoke_test.py path/to/model.gguf --prompt "your own question"
+```
+
+Both pass on the published wheel: Bonsai `PQ2_0` (`file_type=141`) and Gemma 4
+`Q4_0` (`file_type=2`). The Gemma run is the regression guard that matters
+most — the ABI patch reshapes `llama_model_params`, so a wrong field offset
+would break *every* model, not just the fork's exotic quantization.
 
 ## Quick start (consumer)
 
@@ -123,7 +137,8 @@ print(result["choices"][0]["text"])   # '["Ada", "Grace", "Alan"]'
   `tokenizer.ggml.eos_token_id`. Read the token text via
   `llm._model.token_get_text(eos_id)` (note: `_model`, not `llm`) or hardcode
   `<|im_end|>` / `<|endoftext|>`, or the `Jinja2ChatFormatter` constructor
-  raises `KeyError`.
+  raises `KeyError`. Gemma 4 has the same gap, so this is not Bonsai-specific
+  — and the metadata key really is `...eos_token_id`, not `...eos_id`.
 - **The GGUF embeds its own chat template.** llama-cpp-python selects
   `chat_template.default` automatically, so `chat_format="chatml"` is not
   required — pass the template explicitly only when you need `**kwargs` like
@@ -138,6 +153,25 @@ print(result["choices"][0]["text"])   # '["Ada", "Grace", "Alan"]'
   that fails on an M5 (Metal `kIOGPUCommandBufferCallbackErrorOutOfMemory`,
   `llama_decode returned -3`) at roughly 18 GB. `n_ctx=4096` works and is the
   default to use.
+
+### Gotchas when using stock models (verified on Gemma 4 12B QAT)
+
+The fork tracks mainline llama.cpp, so upstream architectures work unchanged —
+`LLM_ARCH_GEMMA4` is present. What differs from Bonsai is the *converse* case:
+nothing fork-specific is needed, you just need the wheel not to be broken.
+
+- **Don't assume ChatML.** Gemma 4 uses `<|turn>role` / `<|channel>thought`.
+  `guess_chat_format_from_gguf_metadata()` only recognises chatml, mistral and
+  llama-3, so it returns `None` and `Llama` falls through to
+  `chat_template.default` — the Jinja template embedded in the GGUF. That is the
+  correct outcome; leave `chat_format` alone.
+- **`n_ctx_train` is also 262144** here, so the same OOM applies. `n_ctx=4096`.
+- **Chat templates get ahead of the binding.** The Gemma 4 template is ~18 KB
+  and uses macros, `dictsort` and `tojson`. `Jinja2ChatFormatter` covers all of
+  that (it registers `tojson` and `jinja2.ext.loopcontrols`), but a template
+  using a filter llama-cpp-python doesn't stub will fail at render time rather
+  than at load time — worth a smoke test after a llama-cpp-python bump.
+- **`n_vocab` is 262144, not 248320** like Bonsai. Don't hardcode it.
 
 ## Build recipe (spike)
 
@@ -313,5 +347,6 @@ Recording these because each one cost a full debug cycle:
 - llama.cpp (PrismML fork): MIT
 - llama-cpp-python: MIT
 - Ternary-Bonsai-2-27B model: Apache-2.0
+- Gemma 4 12B (test model only, not redistributed here): Apache-2.0
 
-All compatible with redistribution.# force rebuild Tue Sep 29 05:07:17 +04 2026
+All compatible with redistribution.
