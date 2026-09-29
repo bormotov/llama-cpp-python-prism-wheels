@@ -29,13 +29,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Pinned to a specific llama-cpp-python release tag
   LLAMA_CPP_PYTHON_VERSION: ${{ github.event.inputs.llama_cpp_python_version || '0.3.35' }}
 
 jobs:
-  # ------------------------------------------------------------
-  # macOS ARM64 + Metal (primary consumer target)
-  # ------------------------------------------------------------
   build-metal:
     name: Build Metal (macOS ARM64)
     runs-on: macos-latest
@@ -62,25 +58,13 @@ jobs:
         run: |
           set -e
           cd llama-cpp-python
-          # The parent repo records the upstream llama.cpp commit (4df29be).
-          # After changing URL to PrismML fork, we must NOT run 'git submodule update'
-          # (it would try to fetch 4df29be from PrismML, which doesn't exist).
-          # Instead, the fork is already checked out at the correct tag.
           git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
           git submodule sync
-          # The fork is already checked out at the correct tag by actions/checkout
           cd vendor/llama.cpp
-          # Initialize submodules (already done by actions/checkout with submodules: recursive)
-          git log --oneline -1
-          git describe --tags
-          # Initialize submodules separately
-          echo "=== DEBUG: updating submodules ==="
-          git submodule update --init --recursive 2>&1
-          echo "=== DEBUG: submodules done ==="
           git log --oneline -1
           git describe --tags
 
-      - name: Patch ctypes binding for struct layout drift
+      - name: Patch ctypes binding
         run: |
           cd llama-cpp-python
           python3 <<'PY'
@@ -109,8 +93,9 @@ jobs:
           t = re.sub(r'^GGML_TYPE_COUNT = 43$', 'GGML_TYPE_COUNT = 144  # [prism]', t, flags=re.M)
           p.write_text(t)
           print("Patched llama_cpp.py")
+          PY
 
-      - name: Bump version to PEP 440 local version
+      - name: Bump version
         run: |
           cd llama-cpp-python
           PRISM_TAG="${{ github.event.inputs.prism_tag || github.ref_name }}"
@@ -152,9 +137,6 @@ jobs:
           path: dist-metal/*.whl
           retention-days: 1
 
-  # ------------------------------------------------------------
-  # macOS ARM64 CPU-only (fallback / CI systems without Metal)
-  # ------------------------------------------------------------
   build-cpu:
     name: Build CPU (macOS ARM64)
     runs-on: macos-latest
@@ -167,17 +149,6 @@ jobs:
           ref: v${{ env.LLAMA_CPP_PYTHON_VERSION }}
           submodules: recursive
           fetch-depth: 1
-
-      - name: Test workspace
-        run: |
-          PRISM_TAG="${{ github.event.inputs.prism_tag || github.ref_name }}"
-          echo "=== TEST: workspace contents ==="
-          ls -la
-          echo "=== TEST: PRISM_TAG='${PRISM_TAG}' ==="
-          echo "=== TEST: GITHUB_REF='${GITHUB_REF}' ==="
-          echo "=== TEST: GITHUB_EVENT_NAME='${GITHUB_EVENT_NAME}' ==="
-          echo "=== TEST: GITHUB_REF_NAME='${GITHUB_REF_NAME}' ==="
-          echo "=== TEST: pwd=$(pwd) ==="
 
       - name: Checkout PrismML llama.cpp fork
         uses: actions/checkout@v4
@@ -192,25 +163,13 @@ jobs:
         run: |
           set -e
           cd llama-cpp-python
-          # The parent repo records the upstream llama.cpp commit (4df29be).
-          # After changing URL to PrismML fork, we must NOT run 'git submodule update'
-          # (it would try to fetch 4df29be from PrismML, which doesn't exist).
-          # Instead, the fork is already checked out at the correct tag.
           git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
           git submodule sync
-          # The fork is already checked out at the correct tag by actions/checkout
           cd vendor/llama.cpp
-          # Initialize submodules (already done by actions/checkout with submodules: recursive)
-          git log --oneline -1
-          git describe --tags
-          # Initialize submodules separately
-          echo "=== DEBUG: updating submodules ==="
-          git submodule update --init --recursive 2>&1
-          echo "=== DEBUG: submodules done ==="
           git log --oneline -1
           git describe --tags
 
-      - name: Patch ctypes binding for struct layout drift
+      - name: Patch ctypes binding
         run: |
           cd llama-cpp-python
           python3 <<'PY'
@@ -239,7 +198,7 @@ jobs:
           t = re.sub(r'^GGML_TYPE_COUNT = 43$', 'GGML_TYPE_COUNT = 144  # [prism]', t, flags=re.M)
           p.write_text(t)
           print("Patched llama_cpp.py")
-PY
+          PY
 
       - name: Bump version
         run: |
@@ -281,9 +240,6 @@ PY
           path: dist-cpu/*.whl
           retention-days: 1
 
-  # ------------------------------------------------------------
-  # Linux x86_64 CPU (for Linux consumers)
-  # ------------------------------------------------------------
   build-linux-cpu:
     name: Build CPU (Linux x86_64)
     runs-on: ubuntu-latest
@@ -302,17 +258,6 @@ PY
           submodules: recursive
           fetch-depth: 1
 
-      - name: Test workspace
-        run: |
-          PRISM_TAG="${{ github.event.inputs.prism_tag || github.ref_name }}"
-          echo "=== TEST: workspace contents ==="
-          ls -la
-          echo "=== TEST: PRISM_TAG='${PRISM_TAG}' ==="
-          echo "=== TEST: GITHUB_REF='${GITHUB_REF}' ==="
-          echo "=== TEST: GITHUB_EVENT_NAME='${GITHUB_EVENT_NAME}' ==="
-          echo "=== TEST: GITHUB_REF_NAME='${GITHUB_REF_NAME}' ==="
-          echo "=== TEST: pwd=$(pwd) ==="
-
       - name: Checkout PrismML llama.cpp fork
         uses: actions/checkout@v4
         with:
@@ -326,21 +271,9 @@ PY
         run: |
           set -e
           cd llama-cpp-python
-          # The parent repo records the upstream llama.cpp commit (4df29be).
-          # After changing URL to PrismML fork, we must NOT run 'git submodule update'
-          # (it would try to fetch 4df29be from PrismML, which doesn't exist).
-          # Instead, the fork is already checked out at the correct tag.
           git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
           git submodule sync
-          # The fork is already checked out at the correct tag by actions/checkout
           cd vendor/llama.cpp
-          # Initialize submodules (already done by actions/checkout with submodules: recursive)
-          git log --oneline -1
-          git describe --tags
-          # Initialize submodules separately
-          echo "=== DEBUG: updating submodules ==="
-          git submodule update --init --recursive 2>&1
-          echo "=== DEBUG: submodules done ==="
           git log --oneline -1
           git describe --tags
 
@@ -373,7 +306,7 @@ PY
           t = re.sub(r'^GGML_TYPE_COUNT = 43$', 'GGML_TYPE_COUNT = 144  # [prism]', t, flags=re.M)
           p.write_text(t)
           print("Patched llama_cpp.py")
-PY
+          PY
 
       - name: Bump version
         run: |
@@ -416,9 +349,6 @@ PY
           path: dist-linux-cpu/*.whl
           retention-days: 1
 
-  # ------------------------------------------------------------
-  # Publish to GitHub Pages (append-only index)
-  # ------------------------------------------------------------
   publish:
     name: Publish to GitHub Pages
     needs: [build-metal, build-cpu, build-linux-cpu]
@@ -441,7 +371,6 @@ PY
           mkdir -p public/whl/prism-metal
           mkdir -p public/whl/prism-cpu
           mkdir -p public/whl/prism-linux-cpu
-          # Copy wheels into per-backend directories
           cp wheels/wheel-metal/*.whl public/whl/prism-metal/ 2>/dev/null || true
           cp wheels/wheel-cpu/*.whl public/whl/prism-cpu/ 2>/dev/null || true
           cp wheels/wheel-linux-cpu/*.whl public/whl/prism-linux-cpu/ 2>/dev/null || true
@@ -463,6 +392,7 @@ PY
               lines.append("</body></html>")
               (dir / "index.html").write_text("\n".join(lines))
               print(f"Generated {dir}/index.html with {len(wheels)} wheel(s)")
+          PY
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
