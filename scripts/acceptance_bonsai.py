@@ -85,8 +85,14 @@ def main() -> int:
     prompt = formatted.prompt
     print(f"--- rendered prompt ({len(prompt)} chars) ---")
     print(prompt[-600:])
-    assert "<think>" not in prompt, "enable_thinking=False should suppress <think>"
-    assert "</think>" in prompt, "expected the closed empty think block"
+    # With thinking disabled the template emits an *empty* think block rather
+    # than removing the tags, so assert the block is empty, not absent.
+    m = re.search(r"<think>(.*?)</think>", prompt, flags=re.S)
+    assert m, "expected a <think>...</think> block in the generation prompt"
+    assert not m.group(1).strip(), (
+        f"enable_thinking=False should leave the think block empty, got {m.group(1)!r}"
+    )
+    print("think block is empty (thinking disabled): ok")
 
     print("\n" + "=" * 70)
     print("4. Running completion")

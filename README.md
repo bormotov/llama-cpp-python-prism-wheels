@@ -18,11 +18,21 @@ The PrismML org provides only CLI binaries (`llama-server`, `llama-cli`). **No P
 | Local spike build (Metal) | ✅ `0.3.35+prism.b10743.adfffbe` |
 | ABI compatibility verified | ✅ 3 struct layout fixes + enum bump |
 | Basic import / struct test | ✅ |
-| Model load test (Bonsai 27B PQ2_0) | ✅ loads, 6.8 GB on Metal, 65/65 layers offloaded |
-| Chat completion on Bonsai | ⏳ pending |
-| Back-compat test (Gemma 12B) | ⏳ pending |
-| GitHub Actions CI (Metal + CPU + Linux) | ✅ implemented, see below |
-| GitHub Pages index | ⏳ first successful deploy pending |
+| Model load test (Bonsai 27B PQ2_0) | ✅ 6.8 GB on Metal, 65/65 layers offloaded |
+| **Chat completion on Bonsai** | ✅ `["Ada", "Grace", "Alan"]`, `finish_reason: stop` |
+| GitHub Actions CI (Metal + CPU + Linux) | ✅ all three green |
+| GitHub Pages index | ✅ PEP 503, installable via pip/uv |
+| Back-compat test (Gemma 12B QAT) | ⏳ pending |
+
+Run the Bonsai acceptance test yourself:
+
+```bash
+python3 scripts/acceptance_bonsai.py path/to/Ternary-Bonsai-2-27B-PQ2_0.gguf
+```
+
+It asserts the model loads, that `enable_thinking=False` yields an empty think
+block, and that the completion parses to the expected names — i.e. it checks
+correctness, not just that the wheel imports.
 
 ## Quick start (consumer)
 
@@ -109,6 +119,10 @@ prompt = response.prompt
   `enable_thinking`.
 - **`create_chat_completion` has no `**kwargs`**, so `enable_thinking` cannot be
   forwarded through it; use `Jinja2ChatFormatter` directly as shown.
+- **`enable_thinking=False` emits an empty think block, it does not remove the
+  tags.** The rendered generation prompt ends with
+  `<think>\n\n</think>\n\n`. Don't assert `"<think>" not in prompt` — assert the
+  block is *empty*, otherwise every run looks like a failure.
 - **Context size.** The model declares `n_ctx_train = 262144`, but allocating
   that fails on an M5 (Metal `kIOGPUCommandBufferCallbackErrorOutOfMemory`,
   `llama_decode returned -3`) at roughly 18 GB. `n_ctx=4096` works and is the
