@@ -22,6 +22,11 @@ The PrismML org provides only CLI binaries (`llama-server`, `llama-cli`). **No P
 | **Chat completion on Bonsai** | ✅ `["Ada", "Grace", "Alan"]`, `finish_reason: stop` |
 | GitHub Actions CI (Metal + CPU + Linux) | ✅ all three green |
 | GitHub Pages index | ✅ PEP 503, installable via pip/uv |
+| Published wheel re-verified | ✅ installed from Pages → Bonsai completion correct |
+
+Verified end to end: `uv pip install --extra-index-url <pages>/whl/prism-metal/`
+in a clean venv, then the Bonsai acceptance test passes against the *installed*
+wheel, not just a locally built one.
 | Back-compat test (Gemma 12B QAT) | ⏳ pending |
 
 Run the Bonsai acceptance test yourself:
@@ -92,27 +97,33 @@ llm = Llama(
 # (create_chat_completion doesn't forward **kwargs to the template)
 from llama_cpp.llama_chat_format import Jinja2ChatFormatter
 
+meta = llm.metadata
+# This GGUF has no "tokenizer.ggml.eos_token" key, only "...eos_token_id",
+# so resolve the text from the id instead (both raise KeyError otherwise).
+eos_token = llm._model.token_get_text(int(meta["tokenizer.ggml.eos_token_id"]))
+bos_token = llm._model.token_get_text(int(meta["tokenizer.ggml.bos_token_id"]))
+
 handler = Jinja2ChatFormatter(
-    template=llm.metadata["tokenizer.chat_template"],
-    eos_token=llm.metadata["tokenizer.ggml.eos_token"],
-    bos_token=llm.metadata["tokenizer.ggml.bos_token"],
+    template=meta["tokenizer.chat_template"],
+    eos_token=eos_token,   # '<|im_end|>'
+    bos_token=bos_token,   # '<|endoftext|>'
 )
 
 response = handler(
     messages=[{"role": "user", "content": "Extract names: ..."}],
-    enable_thinking=False,      # <-- disables the <thinking> block
-    reasoning_effort="low",
+    enable_thinking=False,      # <-- empty <think></think> block
 )
-prompt = response.prompt
-# then feed to llm.create_completion(prompt=prompt, ...)
+result = llm.create_completion(prompt=response.prompt, max_tokens=200)
+print(result["choices"][0]["text"])   # '["Ada", "Grace", "Alan"]'
 ```
 
 ### Gotchas when using Bonsai
 
 - **`tokenizer.ggml.eos_token` is missing.** The GGUF only carries
   `tokenizer.ggml.eos_token_id`. Read the token text via
-  `llm.token_get_text(eos_id)` or hardcode `<|im_end|>` / `<|endoftext|>`, or the
-  `Jinja2ChatFormatter` constructor above raises `KeyError`.
+  `llm._model.token_get_text(eos_id)` (note: `_model`, not `llm`) or hardcode
+  `<|im_end|>` / `<|endoftext|>`, or the `Jinja2ChatFormatter` constructor
+  raises `KeyError`.
 - **The GGUF embeds its own chat template.** llama-cpp-python selects
   `chat_template.default` automatically, so `chat_format="chatml"` is not
   required — pass the template explicitly only when you need `**kwargs` like
@@ -131,33 +142,38 @@ prompt = response.prompt
 ## Build recipe (spike)
 
 ```bash
-# 1. Clone llama-cpp-python at the exact release tag
-git clone --branch v0.3.35 --recurse-submodules --shallow-submodules \
-  https://github.com/abetlen/llama-cpp-python
-
-# 2. Repoint the submodule to PrismML fork at the chosen tag
+# 1. Clone llama-cpp-python at the exact release tag (no submodules needed)
+git clone --branch v0.3.35 --depth 1 https://github.com/abetlen/llama-cpp-python
 cd llama-cpp-python
-git submodule set-url vendor/llama.cpp https://github.com/PrismML-Eng/llama.cpp
-git submodule sync
-rm -rf vendor/llama.cpp
-git submodule update --init --recursive --depth 1
-cd vendor/llama.cpp
-git fetch --depth 1 origin refs/tags/prism-b10743-adfffbe:refs/tags/prism-b10743-adfffbe
-git checkout prism-b10743-adfffbe
-git submodule update --init --recursive --depth 1
-cd ../..
+
+# 2. Put the PrismML fork in the submodule slot.
+#    A plain clone is enough: the fork's .gitmodules is empty, so there is
+#    nothing to recurse into. (This is what CI does; it avoids fighting
+#    actions/checkout's nested-path bookkeeping.)
+mkdir -p vendor/llama.cpp
+git clone --depth 1 --branch prism-b10743-adfffbe \
+  https://github.com/PrismML-Eng/llama.cpp.git vendor/llama.cpp
+git -C vendor/llama.cpp rev-parse HEAD   # adfffbe41b2c...
 
 # 3. Patch the ctypes binding for struct layout drift and set the version.
-#    This applies patches/0001-prism-ctypes-abi.patch and verifies the result.
-python3 scripts/prepare_llama_cpp_python.py . 0.3.35 prism-b10743-adfffbe
+#    Run from the repo root of *this* project, so it can find patches/.
+cd ..
+python3 scripts/prepare_llama_cpp_python.py llama-cpp-python 0.3.35 prism-b10743-adfffbe
 #    -> __version__ = "0.3.35+prism.b10743.adfffbe"
 
 # 4. Build with Metal
 CMAKE_ARGS="-DGGML_METAL=ON -DGGML_METAL_EMBED_LIBRARY=ON -DGGML_NATIVE=ON \
   -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_TOOLS=OFF \
   -DLLAMA_CURL=OFF" \
-uv build --wheel --out-dir dist .
+uv build --wheel --out-dir ../dist .
 ```
+
+Produces `dist/llama_cpp_python-0.3.35+prism.b10743.adfffbe-py3-none-macosx_<ver>_arm64.whl`.
+
+The `macosx_<ver>` tag comes from the macOS version of the *build machine*. On
+`macos-latest` (macOS 26) that is `macosx_26_0_arm64`, which will **not** install
+on macOS 15 or earlier. If you need wider compatibility, set
+`MACOSX_DEPLOYMENT_TARGET=11.0` in the build environment.
 
 ## ABI compatibility notes (critical)
 
