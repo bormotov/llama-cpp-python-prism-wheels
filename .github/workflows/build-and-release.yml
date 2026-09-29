@@ -87,7 +87,7 @@ jobs:
           import re, pathlib
           p = pathlib.Path("llama_cpp/llama_cpp.py")
           t = p.read_text()
-          # 1) llama_model_params: prepend dspark_head_source
+          # 1) llama_model_params: prepend dspark_head_source before devices
           t = re.sub(
               r'(    _fields_ = \[\n\s*\("devices", ctypes\.c_void_p\))',
               r'        ("dspark_head_source", ctypes.c_void_p),\n\1',
@@ -95,14 +95,14 @@ jobs:
           )
           # 2) llama_context_params: insert path_kv_mean_center before abort_callback
           t = re.sub(
-              r'(        \("type_v", ctypes\.c_int\),\n\s*\("abort_callback")',
-              r'\1,\n        ("path_kv_mean_center", ctypes.c_char_p),\n        \2',
+              r'(        \("type_v", ctypes\.c_int\),)\n(\s*\("abort_callback")',
+              r'\1,\n\2        ("path_kv_mean_center", ctypes.c_char_p),\n\2',
               t
           )
-          # 3) llama_opt_params: append optimizer_type
+          # 3) llama_opt_params: append optimizer_type after get_opt_pars_ud
           t = re.sub(
-              r'(        \("get_opt_pars_ud", ctypes\.c_void_p\),\n\s*\])',
-              r'\1,\n        ("optimizer_type", ctypes.c_int),\n    ]',
+              r'(        \("get_opt_pars_ud", ctypes\.c_void_p\),)\n(\s*\])',
+              r'\1,\n\2        ("optimizer_type", ctypes.c_int),\n\2',
               t
           )
           # 4) GGML_TYPE_COUNT: 43 -> 144
@@ -217,23 +217,29 @@ jobs:
           import re, pathlib
           p = pathlib.Path("llama_cpp/llama_cpp.py")
           t = p.read_text()
+          # 1) llama_model_params: prepend dspark_head_source before devices
           t = re.sub(
               r'(    _fields_ = \[\n\s*\("devices", ctypes\.c_void_p\))',
               r'        ("dspark_head_source", ctypes.c_void_p),\n\1',
               t
           )
+          # 2) llama_context_params: insert path_kv_mean_center before abort_callback
           t = re.sub(
-              r'(        \("type_v", ctypes\.c_int\),\n\s*\("abort_callback")',
-              r'\1,\n        ("path_kv_mean_center", ctypes.c_char_p),\n        \2',
+              r'(        \("type_v", ctypes\.c_int\),)\n(\s*\("abort_callback")',
+              r'\1,\n\2        ("path_kv_mean_center", ctypes.c_char_p),\n\2',
               t
           )
+          # 3) llama_opt_params: append optimizer_type after get_opt_pars_ud
           t = re.sub(
-              r'(        \("get_opt_pars_ud", ctypes\.c_void_p\),\n\s*\])',
-              r'\1,\n        ("optimizer_type", ctypes.c_int),\n    ]',
+              r'(        \("get_opt_pars_ud", ctypes\.c_void_p\),)\n(\s*\])',
+              r'\1,\n\2        ("optimizer_type", ctypes.c_int),\n\2',
               t
           )
+          # 4) GGML_TYPE_COUNT: 43 -> 144
           t = re.sub(r'^GGML_TYPE_COUNT = 43$', 'GGML_TYPE_COUNT = 144  # [prism]', t, flags=re.M)
           p.write_text(t)
+          print("Patched llama_cpp.py")
+PY
 
       - name: Bump version
         run: |
@@ -345,23 +351,29 @@ jobs:
           import re, pathlib
           p = pathlib.Path("llama_cpp/llama_cpp.py")
           t = p.read_text()
+          # 1) llama_model_params: prepend dspark_head_source before devices
           t = re.sub(
               r'(    _fields_ = \[\n\s*\("devices", ctypes\.c_void_p\))',
               r'        ("dspark_head_source", ctypes.c_void_p),\n\1',
               t
           )
+          # 2) llama_context_params: insert path_kv_mean_center before abort_callback
           t = re.sub(
-              r'(        \("type_v", ctypes\.c_int\),\n\s*\("abort_callback")',
-              r'\1,\n        ("path_kv_mean_center", ctypes.c_char_p),\n        \2',
+              r'(        \("type_v", ctypes\.c_int\),)\n(\s*\("abort_callback")',
+              r'\1,\n\2        ("path_kv_mean_center", ctypes.c_char_p),\n\2',
               t
           )
+          # 3) llama_opt_params: append optimizer_type after get_opt_pars_ud
           t = re.sub(
-              r'(        \("get_opt_pars_ud", ctypes\.c_void_p\),\n\s*\])',
-              r'\1,\n        ("optimizer_type", ctypes.c_int),\n    ]',
+              r'(        \("get_opt_pars_ud", ctypes\.c_void_p\),)\n(\s*\])',
+              r'\1,\n\2        ("optimizer_type", ctypes.c_int),\n\2',
               t
           )
+          # 4) GGML_TYPE_COUNT: 43 -> 144
           t = re.sub(r'^GGML_TYPE_COUNT = 43$', 'GGML_TYPE_COUNT = 144  # [prism]', t, flags=re.M)
           p.write_text(t)
+          print("Patched llama_cpp.py")
+PY
 
       - name: Bump version
         run: |
