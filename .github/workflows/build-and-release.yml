@@ -69,53 +69,53 @@ jobs:
         run: |
           set -e
           cd llama-cpp-python
-          python3 <<'PY'
-          import re, pathlib, sys
-          p = pathlib.Path("llama_cpp/llama_cpp.py")
-          if not p.exists():
-              print("ERROR: llama_cpp.py not found", file=sys.stderr)
-              sys.exit(1)
-          t = p.read_text()
-          print(f"File size: {len(t)} chars")
-          
-          # 1) llama_model_params: prepend dspark_head_source before devices
-          pattern1 = r'(    _fields_ = \[\n\s*\("devices", ctypes\.c_void_p\))'
-          m1 = re.search(pattern1, t)
-          print(f"Pattern 1 match: {m1 is not None}")
-          if m1:
-              print(f"  Match: {repr(m1.group(1)[:80])}")
-          t = re.sub(
-              r'(    _fields_ = \[\n\s*\("devices", ctypes\.c_void_p\))',
-              r'        ("dspark_head_source", ctypes.c_void_p),\n\1',
-              t
-          )
-          # 2) llama_context_params: insert path_kv_mean_center before abort_callback
-          pattern2 = r'(        \("type_v", ctypes\.c_int\),)\n(\s*\("abort_callback")'
-          m2 = re.search(pattern2, t)
-          print(f"Pattern 2 match: {m2 is not None}")
-          if m2:
-              print(f"  Match: {repr(m2.group(1)[:80])}")
-          t = re.sub(
-              r'(        \("type_v", ctypes\.c_int\),)\n(\s*\("abort_callback")',
-              r'\1,\n\2        ("path_kv_mean_center", ctypes.c_char_p),\n\2',
-              t
-          )
-          # 3) llama_opt_params: append optimizer_type after get_opt_pars_ud
-          pattern3 = r'(        \("get_opt_pars_ud", ctypes\.c_void_p\),)\n(\s*\])'
-          m3 = re.search(pattern3, t)
-          print(f"Pattern 3 match: {m3 is not None}")
-          if m3:
-              print(f"  Match: {repr(m3.group(1)[:80])}")
-          t = re.sub(
-              r'(        \("get_opt_pars_ud", ctypes\.c_void_p\),)\n(\s*\])',
-              r'\1,\n\2        ("optimizer_type", ctypes.c_int),\n\2',
-              t
-          )
-          # 4) GGML_TYPE_COUNT: 43 -> 144
-          t = re.sub(r'^GGML_TYPE_COUNT = 43$', 'GGML_TYPE_COUNT = 144  # [prism]', t, flags=re.M)
-          p.write_text(t)
-          print("Patched llama_cpp.py")
-          PY
+          python3 -c "
+import re, pathlib, sys
+p = pathlib.Path('llama_cpp/llama_cpp.py')
+if not p.exists():
+    print('ERROR: llama_cpp.py not found', file=sys.stderr)
+    sys.exit(1)
+t = p.read_text()
+print('File size:', len(t), 'chars')
+
+# 1) llama_model_params: prepend dspark_head_source before devices
+pattern1 = r'(    _fields_ = \[\n\s*\(\"devices\", ctypes\.c_void_p\))'
+m1 = re.search(pattern1, t)
+print('Pattern 1 match:', m1 is not None)
+if m1:
+    print('  Match:', repr(m1.group(1)[:80]))
+t = re.sub(
+    r'(    _fields_ = \[\n\s*\(\"devices\", ctypes\.c_void_p\))',
+    r'        (\"dspark_head_source\", ctypes.c_void_p),\n\1',
+    t
+)
+# 2) llama_context_params: insert path_kv_mean_center before abort_callback
+pattern2 = r'(        \(\"type_v\", ctypes\.c_int\),)\n(\s*\(\"abort_callback\")'
+m2 = re.search(pattern2, t)
+print('Pattern 2 match:', m2 is not None)
+if m2:
+    print('  Match:', repr(m2.group(1)[:80]))
+t = re.sub(
+    r'(        \(\"type_v\", ctypes\.c_int\),)\n(\s*\(\"abort_callback\")',
+    r'\1,\n\2        (\"path_kv_mean_center\", ctypes.c_char_p),\n\2',
+    t
+)
+# 3) llama_opt_params: append optimizer_type after get_opt_pars_ud
+pattern3 = r'(        \(\"get_opt_pars_ud\", ctypes\.c_void_p\),)\n(\s*\])'
+m3 = re.search(pattern3, t)
+print('Pattern 3 match:', m3 is not None)
+if m3:
+    print('  Match:', repr(m3.group(1)[:80]))
+t = re.sub(
+    r'(        \(\"get_opt_pars_ud\", ctypes\.c_void_p\),)\n(\s*\])',
+    r'\1,\n\2        (\"optimizer_type\", ctypes.c_int),\n\2',
+    t
+)
+# 4) GGML_TYPE_COUNT: 43 -> 144
+t = re.sub(r'^GGML_TYPE_COUNT = 43$', 'GGML_TYPE_COUNT = 144  # [prism]', t, flags=re.M)
+p.write_text(t)
+print('Patched llama_cpp.py')
+"
 
       - name: Bump version
         run: |
@@ -195,53 +195,53 @@ jobs:
         run: |
           set -e
           cd llama-cpp-python
-          python3 <<'PY'
-          import re, pathlib, sys
-          p = pathlib.Path("llama_cpp/llama_cpp.py")
-          if not p.exists():
-              print("ERROR: llama_cpp.py not found", file=sys.stderr)
-              sys.exit(1)
-          t = p.read_text()
-          print(f"File size: {len(t)} chars")
-          
-          # 1) llama_model_params: prepend dspark_head_source before devices
-          pattern1 = r'(    _fields_ = \[\n\s*\("devices", ctypes\.c_void_p\))'
-          m1 = re.search(pattern1, t)
-          print(f"Pattern 1 match: {m1 is not None}")
-          if m1:
-              print(f"  Match: {repr(m1.group(1)[:80])}")
-          t = re.sub(
-              r'(    _fields_ = \[\n\s*\("devices", ctypes\.c_void_p\))',
-              r'        ("dspark_head_source", ctypes.c_void_p),\n\1',
-              t
-          )
-          # 2) llama_context_params: insert path_kv_mean_center before abort_callback
-          pattern2 = r'(        \("type_v", ctypes\.c_int\),)\n(\s*\("abort_callback")'
-          m2 = re.search(pattern2, t)
-          print(f"Pattern 2 match: {m2 is not None}")
-          if m2:
-              print(f"  Match: {repr(m2.group(1)[:80])}")
-          t = re.sub(
-              r'(        \("type_v", ctypes\.c_int\),)\n(\s*\("abort_callback")',
-              r'\1,\n\2        ("path_kv_mean_center", ctypes.c_char_p),\n\2',
-              t
-          )
-          # 3) llama_opt_params: append optimizer_type after get_opt_pars_ud
-          pattern3 = r'(        \("get_opt_pars_ud", ctypes\.c_void_p\),)\n(\s*\])'
-          m3 = re.search(pattern3, t)
-          print(f"Pattern 3 match: {m3 is not None}")
-          if m3:
-              print(f"  Match: {repr(m3.group(1)[:80])}")
-          t = re.sub(
-              r'(        \("get_opt_pars_ud", ctypes\.c_void_p\),)\n(\s*\])',
-              r'\1,\n\2        ("optimizer_type", ctypes.c_int),\n\2',
-              t
-          )
-          # 4) GGML_TYPE_COUNT: 43 -> 144
-          t = re.sub(r'^GGML_TYPE_COUNT = 43$', 'GGML_TYPE_COUNT = 144  # [prism]', t, flags=re.M)
-          p.write_text(t)
-          print("Patched llama_cpp.py")
-          PY
+          python3 -c "
+import re, pathlib, sys
+p = pathlib.Path('llama_cpp/llama_cpp.py')
+if not p.exists():
+    print('ERROR: llama_cpp.py not found', file=sys.stderr)
+    sys.exit(1)
+t = p.read_text()
+print('File size:', len(t), 'chars')
+
+# 1) llama_model_params: prepend dspark_head_source before devices
+pattern1 = r'(    _fields_ = \[\n\s*\(\"devices\", ctypes\.c_void_p\))'
+m1 = re.search(pattern1, t)
+print('Pattern 1 match:', m1 is not None)
+if m1:
+    print('  Match:', repr(m1.group(1)[:80]))
+t = re.sub(
+    r'(    _fields_ = \[\n\s*\(\"devices\", ctypes\.c_void_p\))',
+    r'        (\"dspark_head_source\", ctypes.c_void_p),\n\1',
+    t
+)
+# 2) llama_context_params: insert path_kv_mean_center before abort_callback
+pattern2 = r'(        \(\"type_v\", ctypes\.c_int\),)\n(\s*\(\"abort_callback\")'
+m2 = re.search(pattern2, t)
+print('Pattern 2 match:', m2 is not None)
+if m2:
+    print('  Match:', repr(m2.group(1)[:80]))
+t = re.sub(
+    r'(        \(\"type_v\", ctypes\.c_int\),)\n(\s*\(\"abort_callback\")',
+    r'\1,\n\2        (\"path_kv_mean_center\", ctypes.c_char_p),\n\2',
+    t
+)
+# 3) llama_opt_params: append optimizer_type after get_opt_pars_ud
+pattern3 = r'(        \(\"get_opt_pars_ud\", ctypes\.c_void_p\),)\n(\s*\])'
+m3 = re.search(pattern3, t)
+print('Pattern 3 match:', m3 is not None)
+if m3:
+    print('  Match:', repr(m3.group(1)[:80]))
+t = re.sub(
+    r'(        \(\"get_opt_pars_ud\", ctypes\.c_void_p\),)\n(\s*\])',
+    r'\1,\n\2        (\"optimizer_type\", ctypes.c_int),\n\2',
+    t
+)
+# 4) GGML_TYPE_COUNT: 43 -> 144
+t = re.sub(r'^GGML_TYPE_COUNT = 43$', 'GGML_TYPE_COUNT = 144  # [prism]', t, flags=re.M)
+p.write_text(t)
+print('Patched llama_cpp.py')
+"
 
       - name: Bump version
         run: |
@@ -324,53 +324,53 @@ jobs:
         run: |
           set -e
           cd llama-cpp-python
-          python3 <<'PY'
-          import re, pathlib, sys
-          p = pathlib.Path("llama_cpp/llama_cpp.py")
-          if not p.exists():
-              print("ERROR: llama_cpp.py not found", file=sys.stderr)
-              sys.exit(1)
-          t = p.read_text()
-          print(f"File size: {len(t)} chars")
-          
-          # 1) llama_model_params: prepend dspark_head_source before devices
-          pattern1 = r'(    _fields_ = \[\n\s*\("devices", ctypes\.c_void_p\))'
-          m1 = re.search(pattern1, t)
-          print(f"Pattern 1 match: {m1 is not None}")
-          if m1:
-              print(f"  Match: {repr(m1.group(1)[:80])}")
-          t = re.sub(
-              r'(    _fields_ = \[\n\s*\("devices", ctypes\.c_void_p\))',
-              r'        ("dspark_head_source", ctypes.c_void_p),\n\1',
-              t
-          )
-          # 2) llama_context_params: insert path_kv_mean_center before abort_callback
-          pattern2 = r'(        \("type_v", ctypes\.c_int\),)\n(\s*\("abort_callback")'
-          m2 = re.search(pattern2, t)
-          print(f"Pattern 2 match: {m2 is not None}")
-          if m2:
-              print(f"  Match: {repr(m2.group(1)[:80])}")
-          t = re.sub(
-              r'(        \("type_v", ctypes\.c_int\),)\n(\s*\("abort_callback")',
-              r'\1,\n\2        ("path_kv_mean_center", ctypes.c_char_p),\n\2',
-              t
-          )
-          # 3) llama_opt_params: append optimizer_type after get_opt_pars_ud
-          pattern3 = r'(        \("get_opt_pars_ud", ctypes\.c_void_p\),)\n(\s*\])'
-          m3 = re.search(pattern3, t)
-          print(f"Pattern 3 match: {m3 is not None}")
-          if m3:
-              print(f"  Match: {repr(m3.group(1)[:80])}")
-          t = re.sub(
-              r'(        \("get_opt_pars_ud", ctypes\.c_void_p\),)\n(\s*\])',
-              r'\1,\n\2        ("optimizer_type", ctypes.c_int),\n\2',
-              t
-          )
-          # 4) GGML_TYPE_COUNT: 43 -> 144
-          t = re.sub(r'^GGML_TYPE_COUNT = 43$', 'GGML_TYPE_COUNT = 144  # [prism]', t, flags=re.M)
-          p.write_text(t)
-          print("Patched llama_cpp.py")
-          PY
+          python3 -c "
+import re, pathlib, sys
+p = pathlib.Path('llama_cpp/llama_cpp.py')
+if not p.exists():
+    print('ERROR: llama_cpp.py not found', file=sys.stderr)
+    sys.exit(1)
+t = p.read_text()
+print('File size:', len(t), 'chars')
+
+# 1) llama_model_params: prepend dspark_head_source before devices
+pattern1 = r'(    _fields_ = \[\n\s*\(\"devices\", ctypes\.c_void_p\))'
+m1 = re.search(pattern1, t)
+print('Pattern 1 match:', m1 is not None)
+if m1:
+    print('  Match:', repr(m1.group(1)[:80]))
+t = re.sub(
+    r'(    _fields_ = \[\n\s*\(\"devices\", ctypes\.c_void_p\))',
+    r'        (\"dspark_head_source\", ctypes.c_void_p),\n\1',
+    t
+)
+# 2) llama_context_params: insert path_kv_mean_center before abort_callback
+pattern2 = r'(        \(\"type_v\", ctypes\.c_int\),)\n(\s*\(\"abort_callback\")'
+m2 = re.search(pattern2, t)
+print('Pattern 2 match:', m2 is not None)
+if m2:
+    print('  Match:', repr(m2.group(1)[:80]))
+t = re.sub(
+    r'(        \(\"type_v\", ctypes\.c_int\),)\n(\s*\(\"abort_callback\")',
+    r'\1,\n\2        (\"path_kv_mean_center\", ctypes.c_char_p),\n\2',
+    t
+)
+# 3) llama_opt_params: append optimizer_type after get_opt_pars_ud
+pattern3 = r'(        \(\"get_opt_pars_ud\", ctypes\.c_void_p\),)\n(\s*\])'
+m3 = re.search(pattern3, t)
+print('Pattern 3 match:', m3 is not None)
+if m3:
+    print('  Match:', repr(m3.group(1)[:80]))
+t = re.sub(
+    r'(        \(\"get_opt_pars_ud\", ctypes\.c_void_p\),)\n(\s*\])',
+    r'\1,\n\2        (\"optimizer_type\", ctypes.c_int),\n\2',
+    t
+)
+# 4) GGML_TYPE_COUNT: 43 -> 144
+t = re.sub(r'^GGML_TYPE_COUNT = 43$', 'GGML_TYPE_COUNT = 144  # [prism]', t, flags=re.M)
+p.write_text(t)
+print('Patched llama_cpp.py')
+"
 
       - name: Bump version
         run: |
