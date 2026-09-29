@@ -30,6 +30,7 @@ concurrency:
 
 env:
   LLAMA_CPP_PYTHON_VERSION: ${{ github.event.inputs.llama_cpp_python_version || '0.3.35' }}
+  PRISM_LLAMA_CPP_TAG: ${{ github.event.inputs.prism_tag || 'prism-b10743-adfffbe' }}
 
 jobs:
   build-metal:
@@ -49,7 +50,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: PrismML-Eng/llama.cpp
-          ref: ${{ github.event.inputs.prism_tag || github.ref_name }}
+          ref: ${{ env.PRISM_LLAMA_CPP_TAG }}
           path: llama-cpp-python/vendor/llama.cpp
           submodules: recursive
           fetch-depth: 0
@@ -98,7 +99,7 @@ jobs:
       - name: Bump version
         run: |
           cd llama-cpp-python
-          PRISM_TAG="${{ github.event.inputs.prism_tag || github.ref_name }}"
+          PRISM_TAG="${{ env.PRISM_LLAMA_CPP_TAG }}"
           LOCAL_VER="prism.${PRISM_TAG//-/.}"
           sed -i '' "s/^__version__ = \".*\"/__version__ = \"${{ env.LLAMA_CPP_PYTHON_VERSION }}+${LOCAL_VER}\"/" llama_cpp/__init__.py
           echo "Version: $(cat llama_cpp/__init__.py | grep __version__)"
@@ -154,7 +155,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: PrismML-Eng/llama.cpp
-          ref: ${{ github.event.inputs.prism_tag || github.ref_name }}
+          ref: ${{ env.PRISM_LLAMA_CPP_TAG }}
           path: llama-cpp-python/vendor/llama.cpp
           submodules: recursive
           fetch-depth: 0
@@ -203,7 +204,7 @@ jobs:
       - name: Bump version
         run: |
           cd llama-cpp-python
-          PRISM_TAG="${{ github.event.inputs.prism_tag || github.ref_name }}"
+          PRISM_TAG="${{ env.PRISM_LLAMA_CPP_TAG }}"
           LOCAL_VER="prism.${PRISM_TAG//-/.}"
           sed -i '' "s/^__version__ = \".*\"/__version__ = \"${{ env.LLAMA_CPP_PYTHON_VERSION }}+${LOCAL_VER}\"/" llama_cpp/__init__.py
         env:
@@ -262,7 +263,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: PrismML-Eng/llama.cpp
-          ref: ${{ github.event.inputs.prism_tag || github.ref_name }}
+          ref: ${{ env.PRISM_LLAMA_CPP_TAG }}
           path: llama-cpp-python/vendor/llama.cpp
           submodules: recursive
           fetch-depth: 0
@@ -311,7 +312,7 @@ jobs:
       - name: Bump version
         run: |
           cd llama-cpp-python
-          PRISM_TAG="${{ github.event.inputs.prism_tag || github.ref_name }}"
+          PRISM_TAG="${{ env.PRISM_LLAMA_CPP_TAG }}"
           LOCAL_VER="prism.${PRISM_TAG//-/.}"
           sed -i "s/^__version__ = \".*\"/__version__ = \"${{ env.LLAMA_CPP_PYTHON_VERSION }}+${LOCAL_VER}\"/" llama_cpp/__init__.py
         env:
