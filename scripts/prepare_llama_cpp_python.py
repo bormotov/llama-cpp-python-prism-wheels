@@ -26,8 +26,25 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-PATCH = REPO_ROOT / "patches" / "0001-prism-ctypes-abi.patch"
+PATCH_NAME = "0001-prism-ctypes-abi.patch"
+
+
+def find_patch() -> Path:
+    """Locate the ABI patch, searching upward from this file.
+
+    CI checks this repo out into a subdirectory (``ci/``), a local dev may have
+    it at the workspace root, so don't assume a fixed depth. Do not search
+    arbitrarily far up: a patch from an unrelated checkout would be worse than
+    a clear failure.
+    """
+    for parent in Path(__file__).resolve().parents[:4]:
+        candidate = parent / "patches" / PATCH_NAME
+        if candidate.is_file():
+            return candidate
+    fail(
+        f"could not find patches/{PATCH_NAME} in any parent of {__file__}. "
+        "Run this script from a full checkout of this repository."
+    )
 
 # Field order of the fork headers, asserted after patching. A ctypes Structure
 # whose `_fields_` order diverges from the C struct silently corrupts every
@@ -54,11 +71,10 @@ def fail(msg: str) -> "NoReturn":  # type: ignore[valid-type]
 
 
 def apply_patch(src: Path) -> None:
-    if not PATCH.is_file():
-        fail(f"patch not found: {PATCH}")
-    print(f"Applying {PATCH.relative_to(REPO_ROOT)}")
+    patch = find_patch()
+    print(f"Applying {patch}")
     proc = subprocess.run(
-        ["git", "apply", "--check", "-v", str(PATCH)],
+        ["git", "apply", "--check", "-v", str(patch)],
         cwd=src,
         capture_output=True,
         text=True,
@@ -72,7 +88,7 @@ def apply_patch(src: Path) -> None:
             "scripts/check_binding_compat.py and regenerate "
             "patches/0001-prism-ctypes-abi.patch."
         )
-    subprocess.run(["git", "apply", str(PATCH)], cwd=src, check=True)
+    subprocess.run(["git", "apply", str(patch)], cwd=src, check=True)
 
 
 def set_version(src: Path, upstream: str, prism_tag: str) -> str:
