@@ -26,20 +26,42 @@ The PrismML org provides only CLI binaries (`llama-server`, `llama-cli`). **No P
 
 ## Quick start (consumer)
 
+The index is a standard **PEP 503 "simple" index**, so the normal tools work:
+
+```bash
+# pip — keep PyPI as the default so llama-cpp-python's own deps resolve there
+pip install --extra-index-url \
+  https://bormotov.github.io/llama-cpp-python-prism-wheels/whl/prism-metal/ \
+  "llama-cpp-python==0.3.35+prism.b10743.adfffbe"
+```
+
+```bash
+# uv
+uv pip install --extra-index-url \
+  https://bormotov.github.io/llama-cpp-python-prism-wheels/whl/prism-metal/ \
+  "llama-cpp-python==0.3.35+prism.b10743.adfffbe"
+```
+
+In `pyproject.toml`, pin the index only for macOS so other platforms keep using
+the stock PyPI wheel:
+
 ```toml
-# pyproject.toml or uv.toml
 [[tool.uv.index]]
 name = "llama-prism-metal"
-url = "https://<YOUR_GH_USER>.github.io/llama-cpp-python-prism-wheels/whl/prism-metal"
+url = "https://bormotov.github.io/llama-cpp-python-prism-wheels/whl/prism-metal/"
 explicit = true
 
 [tool.uv.sources]
 llama-cpp-python = { index = "llama-prism-metal", marker = "sys_platform == 'darwin'" }
 ```
 
-```bash
-uv sync  # installs the PrismML wheel on macOS, stock wheel elsewhere
-```
+Pick the index that matches your platform:
+
+| Index | Platform |
+|-------|----------|
+| `whl/prism-metal` | macOS ARM64 with Metal — **use this for Bonsai** |
+| `whl/prism-cpu` | macOS ARM64, CPU only |
+| `whl/prism-linux-cpu` | Linux x86_64, CPU + OpenBLAS |
 
 Then in Python:
 
@@ -189,19 +211,30 @@ Wheel name: llama_cpp_python-0.3.35+prism.b10743.adfffbe-<platform>.whl
 
 ```
 https://<user>.github.io/llama-cpp-python-prism-wheels/
-├── whl/
-│   ├── prism-metal/           # macOS ARM64 + Metal
-│   │   ├── index.html
-│   │   └── llama_cpp_python-0.3.35+prism.b10743.adfffbe-cp311-*.whl
-│   ├── prism-cpu/             # macOS ARM64 CPU-only
-│   │   ├── index.html
-│   │   └── ...
-│   └── prism-linux-cpu/       # Linux x86_64 CPU
-│       ├── index.html
-│       └── ...
+└── whl/
+    ├── prism-metal/                    # macOS ARM64 + Metal
+    │   ├── index.html                  # flat listing -> --find-links
+    │   └── llama-cpp-python/           # PEP 503 "simple" project page
+    │       ├── index.html
+    │       └── llama_cpp_python-0.3.35+prism.b10743.adfffbe-py3-none-macosx_*.whl
+    ├── prism-cpu/                      # macOS ARM64 CPU-only
+    │   └── ... same shape
+    └── prism-linux-cpu/                # Linux x86_64 CPU
+        └── ... same shape
 ```
 
-Append-only: **old wheels are never deleted**. Consumers pin exact versions (`==0.3.35+prism.b10743.adfffbe`).
+The nested `llama-cpp-python/` directory is **required**, not cosmetic. Given
+`--index-url .../whl/prism-metal/`, both pip and uv normalise the project name
+and then request `.../whl/prism-metal/llama-cpp-python/`. A flat index at the
+backend root 404s there and resolution fails with
+`No matching distribution found` — even though the wheel URL is perfectly
+reachable. Use `--index-url` (not `--extra-index-url`) only if you also host the
+runtime dependencies; otherwise prefer `--extra-index-url` so PyPI still serves
+numpy/jinja2/diskcache.
+
+Append-only: **old wheels are never deleted**. Consumers pin exact versions
+(`==0.3.35+prism.b10743.adfffbe`); the publish job re-downloads whatever is
+already live and republishes it alongside the new build.
 
 ### Release workflow
 
@@ -238,6 +271,9 @@ Recording these because each one cost a full debug cycle:
   `actions/upload-pages-artifact` + `actions/deploy-pages`. Pushing to a
   `gh-pages` branch with `peaceiris/actions-gh-pages` publishes a commit the
   Pages site will never serve.
+- **`sparse-checkout` is not free.** `sparse-checkout: scripts` checked out
+  `scripts/` but not `patches/`, so the patch step failed with "patch not
+  found" on every runner. Only reach for it if the checkout is genuinely large.
 - **Bash parameter expansion does not work inside `${{ }}`.**
   `${VAR//-/.}` is evaluated by Actions as a literal string, not by bash. Move it
   into a `run:` block.
