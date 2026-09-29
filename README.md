@@ -177,4 +177,4 @@ Append-only: **old wheels are never deleted**. Consumers pin exact versions (`==
 - llama-cpp-python: MIT
 - Ternary-Bonsai-2-27B model: Apache-2.0
 
-All compatible with redistribution.
+All compatible with redistribution.# force rebuild Tue Sep 29 05:07:17 +04 2026
