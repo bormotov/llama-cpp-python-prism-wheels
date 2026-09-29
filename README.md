@@ -24,6 +24,7 @@ The PrismML org provides only CLI binaries (`llama-server`, `llama-cli`). **No P
 | GitHub Pages index | ✅ PEP 503, installable via pip/uv |
 | Published wheel re-verified | ✅ installed from Pages → Bonsai completion correct |
 | Back-compat test (Gemma 4 12B QAT Q4_0) | ✅ `2+2 → "4"`, `finish_reason: stop` |
+| macOS support floor | ✅ macOS 15+ only, deliberate (see below) |
 
 Verified end to end: `uv pip install --extra-index-url <pages>/whl/prism-metal/`
 in a clean venv, then both acceptance tests pass against the *installed* wheel,
@@ -206,8 +207,48 @@ Produces `dist/llama_cpp_python-0.3.35+prism.b10743.adfffbe-py3-none-macosx_<ver
 
 The `macosx_<ver>` tag comes from the macOS version of the *build machine*. On
 `macos-latest` (macOS 26) that is `macosx_26_0_arm64`, which will **not** install
-on macOS 15 or earlier. If you need wider compatibility, set
-`MACOSX_DEPLOYMENT_TARGET=11.0` in the build environment.
+on macOS 15 or earlier.
+
+### Do not "fix" this with `MACOSX_DEPLOYMENT_TARGET=11.0`
+
+It looks like a one-line fix. It is not, and it produces the worst possible
+failure mode: the wheel installs on old macOS and then dies at load time.
+
+The reason is that upstream gates its macOS 15 code on the **SDK** version, not
+on the deployment target:
+
+```c
+// ggml/src/ggml-metal/ggml-metal-device.m
+// create residency sets only on macOS >= 15.0
+#if !TARGET_CPU_X86_64 && TARGET_OS_OSX && __MAC_OS_X_VERSION_MAX_ALLOWED >= 150000
+#define GGML_METAL_HAS_RESIDENCY_SETS 1
+#endif
+```
+
+`__MAC_OS_X_VERSION_MAX_ALLOWED` is the SDK's version (26xxx when building on
+`macos-latest`). Lowering `MACOSX_DEPLOYMENT_TARGET` does not change it, so the
+residency-set code stays compiled in, and the binary keeps an unconditional
+reference to `MTLResidencySetDescriptor` — a macOS 15 class. There is no
+`@available` runtime guard, only the compile-time one, so there is no graceful
+fallback. `use_residency_sets` defaults to on:
+
+```
+$ otool -l libggml-metal.0.dylib | grep -A3 LC_BUILD_VERSION
+  platform 1
+  minos 26.0        # <- would read 11.0 after the env var, while still
+$ nm -u libggml-metal.0.dylib | grep Residency    #   needing macOS 15
+  _OBJC_CLASS_$_MTLResidencySetDescriptor
+```
+
+Actually supporting macOS 11-14 means building against an older SDK
+(`-sdk macosx14`), not just moving the tag. That is real work, and we have no
+hardware to test it on, so a silently broken wheel is the expected outcome of
+trying. **macOS 15+ is the supported floor.** The tag is what enforces it, and
+pip/uv report a clean "no matching distribution" instead of a runtime crash.
+
+If you want to be kind to a consumer on an old machine, the useful advice is to
+tell them what the message cannot: that local neural inference is a poor fit for
+a pre-2023 Mac, and that a newer machine is the better investment.
 
 ## ABI compatibility notes (critical)
 
