@@ -15,13 +15,14 @@ The PrismML org provides only CLI binaries (`llama-server`, `llama-cli`). **No P
 
 | Phase | Status |
 |-------|--------|
-| Local spike build (Metal) | ✅ Complete (`0.3.35+prism.b10743.adfffbe`) |
-| ABI compatibility verified | ✅ (3 struct layout fixes, enum bump) |
+| Local spike build (Metal) | ✅ `0.3.35+prism.b10743.adfffbe` |
+| ABI compatibility verified | ✅ 3 struct layout fixes + enum bump |
 | Basic import / struct test | ✅ |
-| Model load test (Bonsai 27B PQ2_0) | ⏳ Download in progress |
-| Back-compat test (Gemma 12B) | ⏳ Pending |
-| GitHub Actions CI (Metal + CPU) | 📋 Designed below |
-| GitHub Pages index | 📋 Designed below |
+| Model load test (Bonsai 27B PQ2_0) | ✅ loads, 6.8 GB on Metal, 65/65 layers offloaded |
+| Chat completion on Bonsai | ⏳ pending |
+| Back-compat test (Gemma 12B) | ⏳ pending |
+| GitHub Actions CI (Metal + CPU + Linux) | ✅ implemented, see below |
+| GitHub Pages index | ⏳ first successful deploy pending |
 
 ## Quick start (consumer)
 
@@ -49,7 +50,7 @@ from llama_cpp import Llama
 llm = Llama(
     model_path="Ternary-Bonsai-2-27B-PQ2_0.gguf",
     n_gpu_layers=-1,          # Metal offload
-    n_ctx=262144,             # model's native context
+    n_ctx=4096,               # see "Context size" below; native 262144 OOMs on M5
     flash_attn=True,
     chat_format="chatml",     # or use the GGUF-embedded template
     verbose=True,
@@ -74,6 +75,23 @@ prompt = response.prompt
 # then feed to llm.create_completion(prompt=prompt, ...)
 ```
 
+### Gotchas when using Bonsai
+
+- **`tokenizer.ggml.eos_token` is missing.** The GGUF only carries
+  `tokenizer.ggml.eos_token_id`. Read the token text via
+  `llm.token_get_text(eos_id)` or hardcode `<|im_end|>` / `<|endoftext|>`, or the
+  `Jinja2ChatFormatter` constructor above raises `KeyError`.
+- **The GGUF embeds its own chat template.** llama-cpp-python selects
+  `chat_template.default` automatically, so `chat_format="chatml"` is not
+  required — pass the template explicitly only when you need `**kwargs` like
+  `enable_thinking`.
+- **`create_chat_completion` has no `**kwargs`**, so `enable_thinking` cannot be
+  forwarded through it; use `Jinja2ChatFormatter` directly as shown.
+- **Context size.** The model declares `n_ctx_train = 262144`, but allocating
+  that fails on an M5 (Metal `kIOGPUCommandBufferCallbackErrorOutOfMemory`,
+  `llama_decode returned -3`) at roughly 18 GB. `n_ctx=4096` works and is the
+  default to use.
+
 ## Build recipe (spike)
 
 ```bash
@@ -93,16 +111,12 @@ git checkout prism-b10743-adfffbe
 git submodule update --init --recursive --depth 1
 cd ../..
 
-# 3. Patch the ctypes binding for struct layout drift (see scripts/check_binding_compat.py)
-#    - llama_model_params: prepend `dspark_head_source` (void*)
-#    - llama_context_params: insert `path_kv_mean_center` (char*) before abort_callback
-#    - llama_opt_params: append `optimizer_type` (int)
-#    - GGML_TYPE_COUNT: 43 → 144
+# 3. Patch the ctypes binding for struct layout drift and set the version.
+#    This applies patches/0001-prism-ctypes-abi.patch and verifies the result.
+python3 scripts/prepare_llama_cpp_python.py . 0.3.35 prism-b10743-adfffbe
+#    -> __version__ = "0.3.35+prism.b10743.adfffbe"
 
-# 4. Bump version to PEP 440 local version
-#    __version__ = "0.3.35+prism.b10743.adfffbe"
-
-# 5. Build with Metal
+# 4. Build with Metal
 CMAKE_ARGS="-DGGML_METAL=ON -DGGML_METAL_EMBED_LIBRARY=ON -DGGML_NATIVE=ON \
   -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_TOOLS=OFF \
   -DLLAMA_CURL=OFF" \
@@ -123,6 +137,31 @@ Plus one **enum drift**:
 - `GGML_TYPE_COUNT`: 43 → 144 (new quantization types added)
 
 The script `scripts/check_binding_compat.py` automates detection of these drifts.
+
+In CI the fix is applied as a real patch file, `patches/0001-prism-ctypes-abi.patch`,
+by `scripts/prepare_llama_cpp_python.py`, which also:
+
+- sets `__version__` to the PEP 440 local version, and
+- **re-verifies the result** by parsing the patched `_fields_` lists with `ast`
+  and asserting each new field sits between the expected neighbours, plus
+  `GGML_TYPE_COUNT == 144`.
+
+The verification is static rather than an import, because `llama_cpp.py` pulls
+in numpy/diskcache, which are not installed yet at that point in the job. If
+upstream ever reorders those structs, `git apply` fails loudly and the job stops
+with a pointer to `check_binding_compat.py` — the previous inline `re.sub`
+version silently no-op'd and produced a wheel that crashes at inference time.
+
+To re-derive the patch after a fork bump:
+
+```bash
+git clone --branch v0.3.35 --depth 1 https://github.com/abetlen/llama-cpp-python /tmp/lcp
+# edit /tmp/lcp/llama_cpp/llama_cpp.py to match the fork headers
+python3 scripts/check_binding_compat.py \
+  --llama-cpp-python /tmp/lcp \
+  --llama-cpp /path/to/llama.cpp-fork
+cd /tmp/lcp && git diff -- llama_cpp/llama_cpp.py > patches/0001-prism-ctypes-abi.patch
+```
 
 ## CI design (GitHub Actions → GitHub Pages)
 
@@ -166,10 +205,42 @@ Append-only: **old wheels are never deleted**. Consumers pin exact versions (`==
 
 ### Release workflow
 
-1. Tag the fork commit: `git tag prism-bXXXXXX-<shortsha>` (or use existing PrismML tag)
-2. Bump `__version__` in `llama_cpp/__init__.py`
-3. Push tag → GitHub Actions builds all matrix jobs
-4. On success, `gh-pages` branch updated with new wheels + regenerated `index.html`
+1. Choose a PrismML fork tag (e.g. `prism-b10743-adfffbe`).
+2. Push a release tag of **this** repo matching `prism-b*` (e.g. `prism-b10743-adfffbe-v1`).
+3. GitHub Actions builds all three matrix jobs, then deploys to Pages.
+4. Consumers install from `/whl/<backend>/`.
+
+Via `workflow_dispatch` you can pass `prism_tag` and `llama_cpp_python_version`
+explicitly instead of pushing a tag.
+
+Note the two tag namespaces are different things: the **fork** tag
+(`prism-b10743-adfffbe`) identifies the llama.cpp commit, while the **release**
+tag of this repo (`prism-b10743-adfffbe-v1`) is just a trigger and a build
+counter. The wheel version is derived from the fork tag, so re-running the same
+fork tag rebuilds the same version string.
+
+### CI gotchas hit while building this
+
+Recording these because each one cost a full debug cycle:
+
+- **`actions/checkout` without `path:`** checks out into the workspace root. A
+  second checkout with `path: llama-cpp-python/vendor/llama.cpp` then creates a
+  *brand new empty* `llama-cpp-python/` tree next to the real one, and the patch
+  step fails with `llama_cpp.py not found` while every preceding step reports
+  success. Always set `path:` on the first checkout.
+- **Multi-line `python3 -c "…"` inside `run: |`** is invalid YAML. The script
+  body sits at column 0, and block scalar content must be indented deeper than
+  its key — the run then fails in 0s with "workflow file issue" and no logs. Use
+  a heredoc with a quoted delimiter, or (what we do) a checked-in script.
+- **`sed -i '' …` is BSD-only.** It works on macOS and fails on
+  `ubuntu-latest`, which needs `sed -i …`. The version bump is done in Python.
+- **Pages `build_type` is `workflow`**, so the deploy must go through
+  `actions/upload-pages-artifact` + `actions/deploy-pages`. Pushing to a
+  `gh-pages` branch with `peaceiris/actions-gh-pages` publishes a commit the
+  Pages site will never serve.
+- **Bash parameter expansion does not work inside `${{ }}`.**
+  `${VAR//-/.}` is evaluated by Actions as a literal string, not by bash. Move it
+  into a `run:` block.
 
 ## License
 

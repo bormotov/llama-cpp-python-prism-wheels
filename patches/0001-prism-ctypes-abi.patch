@@ -1,0 +1,61 @@
+Align ctypes binding with the PrismML llama.cpp C ABI (tag prism-b10743-adfffbe).
+
+Upstream llama-cpp-python 0.3.35 binds the *upstream* llama.cpp headers. The
+PrismML fork (upstream build b10743, commit adfffbe) grew three struct fields
+and expanded the ggml type enum. A ctypes Structure whose `_fields_` order does
+not match the C struct silently corrupts every field after the first
+divergence, so these must be inserted at the exact offset the C compiler uses.
+
+Detected by scripts/check_binding_compat.py. Reference sizes on this fork:
+    sizeof(struct llama_model_params)    == 80
+    sizeof(struct llama_context_params) == 168
+    GGML_TYPE_COUNT                      == 144
+
+diff --git a/llama_cpp/llama_cpp.py b/llama_cpp/llama_cpp.py
+--- a/llama_cpp/llama_cpp.py
++++ b/llama_cpp/llama_cpp.py
+@@ -90,7 +90,7 @@ def _warn_deprecated(symbol: str, hint: str) -> None:
+ #     GGML_TYPE_NVFP4   = 40,
+ #     GGML_TYPE_Q1_0    = 41,
+ #     GGML_TYPE_Q2_0    = 42,
+-#     GGML_TYPE_COUNT   = 43,
++#     GGML_TYPE_COUNT   = 144,
+ # };
+ GGML_TYPE_F32 = 0
+ GGML_TYPE_F16 = 1
+@@ -124,7 +124,7 @@ GGML_TYPE_MXFP4 = 39
+ GGML_TYPE_NVFP4 = 40
+ GGML_TYPE_Q1_0 = 41
+ GGML_TYPE_Q2_0 = 42
+-GGML_TYPE_COUNT = 43
++GGML_TYPE_COUNT = 144  # [prism] bumped in the fork
+ 
+ # from ggml-backend.h
+ # typedef bool (*ggml_backend_sched_eval_callback)(struct ggml_tensor * t, bool ask, void * user_data);
+@@ -877,6 +877,8 @@ class llama_model_params(ctypes.Structure):
+         load_mtp: bool
+ 
+     _fields_ = [
++        # [prism] new in the PrismML fork; must stay first to match the C layout
++        ("dspark_head_source", ctypes.c_void_p),
+         ("devices", ctypes.c_void_p),  # NOTE: unnused
+         ("tensor_buft_overrides", ctypes.c_void_p),  # NOTE: unused
+         ("n_gpu_layers", ctypes.c_int32),
+@@ -1080,6 +1082,8 @@ class llama_context_params(ctypes.Structure):
+         ("cb_eval_user_data", ctypes.c_void_p),
+         ("type_k", ctypes.c_int),
+         ("type_v", ctypes.c_int),
++        # [prism] new in the PrismML fork; inserted before abort_callback
++        ("path_kv_mean_center", ctypes.c_char_p),
+         ("abort_callback", ggml_abort_callback),
+         ("abort_callback_data", ctypes.c_void_p),
+         ("embeddings", ctypes.c_bool),
+@@ -5101,6 +5105,8 @@ class llama_opt_params(ctypes.Structure):
+             ctypes.c_void_p,
+         ),  # ggml_opt_get_optimizer_params - not implemented here
+         ("get_opt_pars_ud", ctypes.c_void_p),
++        # [prism] new in the PrismML fork
++        ("optimizer_type", ctypes.c_int),
+     ]
+ 
+ 

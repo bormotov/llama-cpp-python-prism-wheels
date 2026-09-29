@@ -1,1 +1,6 @@
 .spike/
+dist/
+public/
+__pycache__/
+*.pyc
+
